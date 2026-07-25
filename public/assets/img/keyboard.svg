@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 650">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ecebf7"/><stop offset="1" stop-color="#cecbe5"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-opacity=".22"/></filter></defs>
+  <rect width="800" height="650" rx="42" fill="url(#g)"/>
+  <g filter="url(#s)" transform="translate(70 180)">
+    <path d="M52 25h550c30 0 48 18 52 48l36 227H0L36 73c5-30 20-48 52-48z" fill="#333747"/>
+    <g fill="#5b6073">
+      <rect x="65" y="65" width="58" height="48" rx="10"/><rect x="138" y="65" width="58" height="48" rx="10"/><rect x="211" y="65" width="58" height="48" rx="10"/><rect x="284" y="65" width="58" height="48" rx="10"/><rect x="357" y="65" width="58" height="48" rx="10"/><rect x="430" y="65" width="58" height="48" rx="10"/><rect x="503" y="65" width="86" height="48" rx="10"/>
+      <rect x="78" y="128" width="58" height="48" rx="10"/><rect x="151" y="128" width="58" height="48" rx="10"/><rect x="224" y="128" width="58" height="48" rx="10"/><rect x="297" y="128" width="58" height="48" rx="10"/><rect x="370" y="128" width="58" height="48" rx="10"/><rect x="443" y="128" width="58" height="48" rx="10"/><rect x="516" y="128" width="58" height="48" rx="10"/>
+      <rect x="98" y="191" width="58" height="48" rx="10"/><rect x="171" y="191" width="58" height="48" rx="10"/><rect x="244" y="191" width="58" height="48" rx="10"/><rect x="317" y="191" width="58" height="48" rx="10"/><rect x="390" y="191" width="58" height="48" rx="10"/><rect x="463" y="191" width="98" height="48" rx="10"/>
+    </g>
+    <rect x="205" y="254" width="265" height="31" rx="12" fill="#73788b"/>
+  </g>
+</svg>

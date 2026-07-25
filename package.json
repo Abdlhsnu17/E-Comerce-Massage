@@ -1,0 +1,20 @@
+{
+  "name": "lokamart",
+  "version": "1.0.0",
+  "description": "Website e-commerce LokaMart — frontend statis + REST API Node.js dan database MySQL/MariaDB.",
+  "private": true,
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "db:setup": "node database/setup.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}

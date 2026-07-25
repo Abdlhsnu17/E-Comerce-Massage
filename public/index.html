@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="LokaMart — toko online untuk produk pilihan sehari-hari." />
+  <title>LokaMart — Belanja Pilihan, Hidup Lebih Nyaman</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="announcement">
+    <div class="container announcement__inner">
+      <p>Gratis ongkir untuk pesanan pertama di atas Rp300.000</p>
+      <span>Gunakan kode <strong>LOKABARU</strong></span>
+    </div>
+  </div>
+
+  <header class="site-header" id="top">
+    <div class="container header__inner">
+      <a class="brand" href="#top" aria-label="LokaMart beranda">
+        <span class="brand__mark">L</span>
+        <span>LokaMart</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Navigasi utama">
+        <a href="#products">Katalog</a>
+        <a href="#benefits">Keunggulan</a>
+        <a href="#about">Tentang</a>
+      </nav>
+
+      <div class="header__actions">
+        <button class="icon-btn search-toggle" type="button" aria-label="Buka pencarian">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.6-4.6m2.1-5.15a7.25 7.25 0 1 1-14.5 0 7.25 7.25 0 0 1 14.5 0Z"/></svg>
+        </button>
+        <button class="account-btn" id="accountButton" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm7.5 8.5a7.5 7.5 0 0 0-15 0"/></svg>
+          <span id="accountLabel">Masuk</span>
+        </button>
+        <button class="cart-btn" id="cartButton" type="button" aria-label="Buka keranjang">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2 11h10.8l2-8H6.1M9 20h.01M17 20h.01"/></svg>
+          <span>Keranjang</span>
+          <b id="cartCount">0</b>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-panel" id="searchPanel" aria-hidden="true">
+      <div class="container search-panel__inner">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.6-4.6m2.1-5.15a7.25 7.25 0 1 1-14.5 0 7.25 7.25 0 0 1 14.5 0Z"/></svg>
+        <input id="globalSearch" type="search" placeholder="Cari produk, kategori, atau kebutuhan..." autocomplete="off" />
+        <button class="text-button" id="closeSearch" type="button">Tutup</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero__grid">
+        <div class="hero__copy">
+          <span class="eyebrow">Pilihan terbaik untuk keseharian</span>
+          <h1>Belanja lebih mudah. Pilih yang benar-benar berarti.</h1>
+          <p>Koleksi produk pilihan dengan kualitas terkurasi, pembayaran aman, dan pengalaman belanja tanpa ribet.</p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#products">Belanja sekarang</a>
+            <button class="button button--ghost" id="heroOrdersButton" type="button">Lihat pesanan</button>
+          </div>
+          <div class="hero__meta">
+            <div><strong>4,9/5</strong><span>Ulasan pelanggan</span></div>
+            <div><strong>24 jam</strong><span>Proses pengiriman</span></div>
+            <div><strong>100%</strong><span>Pembayaran aman</span></div>
+          </div>
+        </div>
+
+        <div class="hero__visual" aria-label="Produk unggulan LokaMart">
+          <div class="hero-card hero-card--main">
+            <span class="hero-card__badge">Produk favorit</span>
+            <img src="assets/img/headphones.svg" alt="Headphone Nimbus Pro" />
+            <div class="hero-card__caption">
+              <div><small>Audio</small><strong>Nimbus Pro</strong></div>
+              <span>Rp1.299.000</span>
+            </div>
+          </div>
+          <div class="floating-card floating-card--top">
+            <img src="assets/img/watch.svg" alt="Jam tangan pintar" />
+            <span>Baru</span>
+          </div>
+          <div class="floating-card floating-card--bottom">
+            <div class="avatar-stack"><i>DA</i><i>RK</i><i>MS</i></div>
+            <p><strong>12.500+</strong><br />pelanggan puas</p>
+          </div>
+          <span class="hero-shape hero-shape--one"></span>
+          <span class="hero-shape hero-shape--two"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="benefit-strip" id="benefits">
+      <div class="container benefit-strip__grid">
+        <article>
+          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7zM7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span>
+          <div><strong>Pengiriman cepat</strong><span>Diproses maksimal 24 jam</span></div>
+        </article>
+        <article>
+          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="m12 3 8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4Zm-3 9 2 2 4-4"/></svg></span>
+          <div><strong>Pembayaran aman</strong><span>Transaksi terenkripsi</span></div>
+        </article>
+        <article>
+          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 7V5h10v2M8 11h8M8 15h5"/></svg></span>
+          <div><strong>Produk terkurasi</strong><span>Kualitas yang sudah diseleksi</span></div>
+        </article>
+        <article>
+          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 2v6M16 2v6M2 9h20M8 13h3M13 13h3M8 16h3"/></svg></span>
+          <div><strong>Retur 14 hari</strong><span>Belanja tanpa rasa khawatir</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="catalog section" id="products">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Katalog pilihan</span>
+            <h2>Temukan favorit barumu</h2>
+          </div>
+          <p>Produk pilihan untuk bekerja, beraktivitas, dan menikmati waktu di rumah.</p>
+        </div>
+
+        <div class="catalog-toolbar">
+          <div class="category-filters" id="categoryFilters" aria-label="Filter kategori"></div>
+          <label class="sort-control">
+            <span>Urutkan</span>
+            <select id="sortSelect">
+              <option value="featured">Rekomendasi</option>
+              <option value="lowest">Harga terendah</option>
+              <option value="highest">Harga tertinggi</option>
+              <option value="rating">Rating terbaik</option>
+            </select>
+          </label>
+        </div>
+
+        <p class="results-copy" id="resultsCopy"></p>
+        <div class="product-grid" id="productGrid"></div>
+        <div class="empty-state" id="emptyState" hidden>
+          <span>⌕</span>
+          <h3>Produk tidak ditemukan</h3>
+          <p>Coba kata pencarian atau kategori lain.</p>
+          <button class="button button--primary" id="resetFilter" type="button">Tampilkan semua</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="promo section">
+      <div class="container promo__inner">
+        <div class="promo__copy">
+          <span class="eyebrow eyebrow--light">Penawaran anggota</span>
+          <h2>Lebih hemat setiap kali belanja.</h2>
+          <p>Daftar sebagai anggota LokaMart untuk mendapatkan voucher ulang tahun, akses produk terbaru, dan promo khusus.</p>
+          <button class="button button--light" id="joinButton" type="button">Daftar gratis</button>
+        </div>
+        <div class="promo__art">
+          <span class="promo-orbit promo-orbit--one"></span>
+          <span class="promo-orbit promo-orbit--two"></span>
+          <div class="member-card">
+            <div class="member-card__top"><span class="brand__mark">L</span><em>MEMBER</em></div>
+            <strong>LOKAMART CLUB</strong>
+            <span>Belanja • Poin • Hadiah</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="story section" id="about">
+      <div class="container story__grid">
+        <div class="story__visual">
+          <img src="assets/img/coffee.svg" alt="Mesin kopi pilihan LokaMart" />
+          <div class="story-note"><strong>Dikurasi, bukan sekadar dijual.</strong><span>Setiap produk dinilai dari fungsi, kualitas, dan desain.</span></div>
+        </div>
+        <div class="story__copy">
+          <span class="eyebrow">Tentang LokaMart</span>
+          <h2>Kami percaya belanja yang baik dimulai dari pilihan yang lebih sedikit, tetapi lebih tepat.</h2>
+          <p>LokaMart menghadirkan produk yang relevan untuk kehidupan modern. Kami mengutamakan kualitas, kejelasan informasi, dan layanan yang membantu Anda mengambil keputusan dengan percaya diri.</p>
+          <div class="story__stats">
+            <div><strong>8</strong><span>Kategori pilihan</span></div>
+            <div><strong>98%</strong><span>Pesanan tepat waktu</span></div>
+            <div><strong>4,9</strong><span>Rating rata-rata</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="newsletter section">
+      <div class="container newsletter__inner">
+        <div>
+          <span class="eyebrow">Kabar baik di kotak masuk</span>
+          <h2>Dapatkan promo dan inspirasi pilihan.</h2>
+        </div>
+        <form id="newsletterForm" class="newsletter__form">
+          <label class="sr-only" for="newsletterEmail">Alamat email</label>
+          <input id="newsletterEmail" type="email" placeholder="nama@email.com" required />
+          <button class="button button--primary" type="submit">Berlangganan</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__grid">
+      <div class="footer__brand">
+        <a class="brand brand--footer" href="#top"><span class="brand__mark">L</span><span>LokaMart</span></a>
+        <p>Produk pilihan untuk keseharian yang lebih nyaman.</p>
+      </div>
+      <div><strong>Belanja</strong><a href="#products">Semua produk</a><a href="#products">Produk baru</a><a href="#products">Terlaris</a></div>
+      <div><strong>Bantuan</strong><a href="#">Pengiriman</a><a href="#">Retur</a><a href="#">Hubungi kami</a></div>
+      <div><strong>Perusahaan</strong><a href="#about">Tentang kami</a><a href="#">Karier</a><a href="#">Kebijakan privasi</a></div>
+    </div>
+    <div class="container footer__bottom"><span>© 2026 LokaMart. Demo front-end.</span><span>Indonesia · IDR</span></div>
+  </footer>
+
+  <div class="overlay" id="overlay" hidden></div>
+
+  <aside class="drawer cart-drawer" id="cartDrawer" aria-hidden="true" aria-label="Keranjang belanja">
+    <div class="drawer__header">
+      <div><span>Keranjang belanja</span><small id="cartSubtitle">0 produk</small></div>
+      <button class="close-btn" data-close="cart" type="button" aria-label="Tutup keranjang">×</button>
+    </div>
+    <div class="cart-items" id="cartItems"></div>
+    <div class="cart-empty" id="cartEmpty">
+      <div class="cart-empty__icon">🛍️</div>
+      <h3>Keranjangmu masih kosong</h3>
+      <p>Tambahkan produk favorit untuk melanjutkan.</p>
+      <button class="button button--primary" data-close="cart" type="button">Mulai belanja</button>
+    </div>
+    <div class="cart-summary" id="cartSummary" hidden>
+      <div><span>Subtotal</span><strong id="cartSubtotal">Rp0</strong></div>
+      <p>Ongkir dan diskon dihitung saat checkout.</p>
+      <button class="button button--primary button--wide" id="checkoutButton" type="button">Lanjut checkout</button>
+      <button class="text-button text-button--center" data-close="cart" type="button">Lanjut belanja</button>
+    </div>
+  </aside>
+
+  <section class="modal auth-modal" id="authModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
+    <div class="auth-visual">
+      <span class="brand__mark brand__mark--large">L</span>
+      <h3>Belanja makin praktis dengan akun LokaMart.</h3>
+      <ul><li>Simpan riwayat pesanan</li><li>Checkout lebih cepat</li><li>Akses promo anggota</li></ul>
+    </div>
+    <div class="auth-content">
+      <div class="auth-tabs">
+        <button class="is-active" data-auth-tab="login" type="button">Masuk</button>
+        <button data-auth-tab="register" type="button">Daftar</button>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <span class="eyebrow">Selamat datang kembali</span>
+        <h2 id="authTitle">Masuk ke akunmu</h2>
+        <label>Email<input id="loginEmail" type="email" placeholder="nama@email.com" required /></label>
+        <label>Kata sandi<input id="loginPassword" type="password" placeholder="Minimal 6 karakter" minlength="6" required /></label>
+        <button class="button button--primary button--wide" type="submit">Masuk</button>
+        <p class="form-hint">Untuk demo, gunakan email dan kata sandi apa saja.</p>
+      </form>
+      <form id="registerForm" class="auth-form" hidden>
+        <span class="eyebrow">Buat akun baru</span>
+        <h2>Daftar gratis</h2>
+        <label>Nama lengkap<input id="registerName" type="text" placeholder="Nama lengkap" required /></label>
+        <label>Email<input id="registerEmail" type="email" placeholder="nama@email.com" required /></label>
+        <label>Kata sandi<input id="registerPassword" type="password" placeholder="Minimal 6 karakter" minlength="6" required /></label>
+        <button class="button button--primary button--wide" type="submit">Buat akun</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="modal checkout-modal" id="checkoutModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
+    <div class="checkout-shell">
+      <div class="checkout-main">
+        <div class="checkout-heading">
+          <a class="brand" href="#"><span class="brand__mark">L</span><span>LokaMart</span></a>
+          <span>Checkout aman</span>
+        </div>
+        <div class="checkout-steps" id="checkoutSteps">
+          <span class="is-active"><b>1</b>Pengiriman</span><i></i><span><b>2</b>Pembayaran</span><i></i><span><b>3</b>Selesai</span>
+        </div>
+
+        <form id="shippingForm" class="checkout-form">
+          <div class="form-heading"><span class="eyebrow">Langkah 1</span><h2 id="checkoutTitle">Alamat pengiriman</h2></div>
+          <div class="form-grid">
+            <label class="form-grid__full">Nama penerima<input id="shippingName" type="text" required /></label>
+            <label>Email<input id="shippingEmail" type="email" required /></label>
+            <label>Nomor telepon<input id="shippingPhone" type="tel" placeholder="08xxxxxxxxxx" required /></label>
+            <label class="form-grid__full">Alamat lengkap<textarea id="shippingAddress" rows="3" placeholder="Nama jalan, nomor rumah, RT/RW" required></textarea></label>
+            <label>Kota<input id="shippingCity" type="text" required /></label>
+            <label>Kode pos<input id="shippingPostal" type="text" inputmode="numeric" required /></label>
+          </div>
+          <fieldset class="shipping-options">
+            <legend>Pilih pengiriman</legend>
+            <label><input type="radio" name="shipping" value="regular" checked /><span><strong>Reguler</strong><small>2–4 hari kerja</small></span><b>Rp20.000</b></label>
+            <label><input type="radio" name="shipping" value="express" /><span><strong>Express</strong><small>1–2 hari kerja</small></span><b>Rp35.000</b></label>
+          </fieldset>
+          <button class="button button--primary button--wide" type="submit">Lanjut ke pembayaran</button>
+        </form>
+
+        <form id="paymentForm" class="checkout-form" hidden>
+          <div class="form-heading"><span class="eyebrow">Langkah 2</span><h2>Pilih metode pembayaran</h2></div>
+          <div class="payment-options">
+            <label class="payment-option"><input type="radio" name="payment" value="QRIS" checked /><span class="payment-option__icon">QR</span><span><strong>QRIS</strong><small>Bayar melalui aplikasi bank atau e-wallet</small></span></label>
+            <label class="payment-option"><input type="radio" name="payment" value="Virtual Account" /><span class="payment-option__icon">VA</span><span><strong>Virtual Account</strong><small>BCA, BNI, BRI, Mandiri, dan lainnya</small></span></label>
+            <label class="payment-option"><input type="radio" name="payment" value="Kartu Debit/Kredit" /><span class="payment-option__icon">CC</span><span><strong>Kartu debit/kredit</strong><small>Visa dan Mastercard</small></span></label>
+          </div>
+          <div class="checkout-actions">
+            <button class="button button--ghost" id="backToShipping" type="button">Kembali</button>
+            <button class="button button--primary" type="submit">Bayar sekarang</button>
+          </div>
+        </form>
+
+        <div class="checkout-success" id="checkoutSuccess" hidden>
+          <div class="success-mark">✓</div>
+          <span class="eyebrow">Pembayaran berhasil</span>
+          <h2>Pesananmu sedang kami siapkan.</h2>
+          <p>Nomor pesanan <strong id="successOrderId"></strong>. Detail pesanan tersimpan di riwayat akunmu.</p>
+          <div class="success-actions"><button class="button button--primary" id="viewOrderButton" type="button">Lihat pesanan</button><button class="button button--ghost" data-close="modal" type="button">Kembali belanja</button></div>
+        </div>
+      </div>
+      <aside class="checkout-summary">
+        <span class="eyebrow">Ringkasan pesanan</span>
+        <div id="checkoutItems" class="checkout-items"></div>
+        <div class="checkout-totals">
+          <div><span>Subtotal</span><strong id="checkoutSubtotal">Rp0</strong></div>
+          <div><span>Pengiriman</span><strong id="checkoutShipping">Rp20.000</strong></div>
+          <div class="checkout-total"><span>Total</span><strong id="checkoutTotal">Rp0</strong></div>
+        </div>
+        <div class="secure-note"><svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z"/></svg><span>Transaksi dilindungi dengan sistem pembayaran aman.</span></div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="modal orders-modal" id="ordersModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ordersTitle">
+    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
+    <div class="orders-header">
+      <span class="eyebrow">Akun saya</span>
+      <h2 id="ordersTitle">Riwayat pesanan</h2>
+      <p id="ordersGreeting"></p>
+    </div>
+    <div class="orders-list" id="ordersList"></div>
+    <div class="orders-empty" id="ordersEmpty">
+      <span>📦</span><h3>Belum ada pesanan</h3><p>Pesanan yang berhasil dibuat akan tampil di sini.</p><button class="button button--primary" data-close="modal" type="button">Mulai belanja</button>
+    </div>
+    <button class="text-button logout-button" id="logoutButton" type="button">Keluar dari akun</button>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

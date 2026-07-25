@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 650">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6efe5"/><stop offset="1" stop-color="#d7c3a8"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-opacity=".2"/></filter></defs>
+  <rect width="800" height="650" rx="42" fill="url(#g)"/>
+  <g filter="url(#s)" transform="translate(215 70)">
+    <path d="M80 0h210c35 0 60 26 60 60v360H20V60C20 25 45 0 80 0z" fill="#3a3d3c"/>
+    <rect x="62" y="46" width="246" height="105" rx="24" fill="#202322"/>
+    <circle cx="120" cy="98" r="17" fill="#e5a463"/>
+    <circle cx="180" cy="98" r="17" fill="#6e8b79"/>
+    <circle cx="240" cy="98" r="17" fill="#d8d8d3"/>
+    <rect x="126" y="153" width="118" height="55" rx="18" fill="#181b1a"/>
+    <path d="M185 207v78" stroke="#a9a9a2" stroke-width="18" stroke-linecap="round"/>
+    <path d="M95 328h180v108c0 37-26 61-62 61h-56c-37 0-62-24-62-61z" fill="#f4eee4"/>
+    <path d="M274 355h30c45 0 46 78 0 78h-30" fill="none" stroke="#f4eee4" stroke-width="24"/>
+    <ellipse cx="185" cy="328" rx="90" ry="22" fill="#6f4a31"/>
+    <rect x="0" y="420" width="370" height="44" rx="18" fill="#222625"/>
+  </g>
+</svg>
