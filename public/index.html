@@ -259,7 +259,7 @@
         <label>Email<input id="loginEmail" type="email" placeholder="nama@email.com" required /></label>
         <label>Kata sandi<input id="loginPassword" type="password" placeholder="Minimal 6 karakter" minlength="6" required /></label>
         <button class="button button--primary button--wide" type="submit">Masuk</button>
-        <p class="form-hint">Untuk demo, gunakan email dan kata sandi apa saja.</p>
+        <p class="form-hint">Demo admin: admin@lokamart.id / admin1234. Demo pelanggan: demo@lokamart.id / demo1234.</p>
       </form>
       <form id="registerForm" class="auth-form" hidden>
         <span class="eyebrow">Buat akun baru</span>
@@ -342,12 +342,113 @@
       <span class="eyebrow">Akun saya</span>
       <h2 id="ordersTitle">Riwayat pesanan</h2>
       <p id="ordersGreeting"></p>
+      <button class="button button--primary" id="adminButton" type="button" hidden>Buka Dashboard Admin</button>
     </div>
     <div class="orders-list" id="ordersList"></div>
     <div class="orders-empty" id="ordersEmpty">
       <span>📦</span><h3>Belum ada pesanan</h3><p>Pesanan yang berhasil dibuat akan tampil di sini.</p><button class="button button--primary" data-close="modal" type="button">Mulai belanja</button>
     </div>
     <button class="text-button logout-button" id="logoutButton" type="button">Keluar dari akun</button>
+  </section>
+
+  <!-- Panel admin: hanya dirender untuk akun dengan users.role = 'admin'. -->
+  <section class="modal admin-modal" id="adminModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
+    <div class="admin-header">
+      <div>
+        <span class="eyebrow">Panel pengelola</span>
+        <h2 id="adminTitle">Dashboard Admin</h2>
+        <p id="adminGreeting"></p>
+      </div>
+      <span class="role-pill role-pill--admin">ADMIN</span>
+    </div>
+
+    <div class="admin-tabs" role="tablist">
+      <button class="is-active" data-admin-tab="ringkasan" type="button">Ringkasan</button>
+      <button data-admin-tab="pesanan" type="button">Pesanan</button>
+      <button data-admin-tab="produk" type="button">Produk</button>
+      <button data-admin-tab="pengguna" type="button">Pengguna</button>
+    </div>
+
+    <div class="admin-panel" id="adminPanelRingkasan">
+      <div class="admin-stats" id="adminStats"></div>
+      <div class="admin-split">
+        <div class="admin-block">
+          <h3>Pesanan per status</h3>
+          <div class="admin-table-wrap"><table class="admin-table"><tbody id="adminStatusTable"></tbody></table></div>
+        </div>
+        <div class="admin-block">
+          <h3>Produk terlaris</h3>
+          <div class="admin-table-wrap"><table class="admin-table"><tbody id="adminTopTable"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-panel" id="adminPanelPesanan" hidden>
+      <div class="admin-toolbar">
+        <label>Status
+          <select id="adminOrderStatusFilter">
+            <option value="">Semua status</option>
+            <option value="Sedang diproses">Sedang diproses</option>
+            <option value="Dikirim">Dikirim</option>
+            <option value="Selesai">Selesai</option>
+            <option value="Dibatalkan">Dibatalkan</option>
+          </select>
+        </label>
+        <label class="admin-toolbar__grow">Cari
+          <input id="adminOrderSearch" type="search" placeholder="Kode pesanan, nama, atau email pembeli" />
+        </label>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Pesanan</th><th>Pembeli</th><th>Item</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody id="adminOrdersTable"></tbody>
+        </table>
+      </div>
+      <p class="admin-empty" id="adminOrdersEmpty" hidden>Belum ada pesanan yang cocok.</p>
+    </div>
+
+    <div class="admin-panel" id="adminPanelProduk" hidden>
+      <form class="admin-form" id="adminProductForm">
+        <h3>Tambah produk baru</h3>
+        <div class="admin-form__grid">
+          <label>Nama produk<input id="adminProductName" type="text" required /></label>
+          <label>Kategori<select id="adminProductCategory" required></select></label>
+          <label>Harga (Rp)<input id="adminProductPrice" type="number" min="0" step="1000" required /></label>
+          <label>Harga coret<input id="adminProductOldPrice" type="number" min="0" step="1000" placeholder="opsional" /></label>
+          <label>Stok<input id="adminProductStock" type="number" min="0" value="0" required /></label>
+          <label>Badge<input id="adminProductBadge" type="text" placeholder="mis. Baru" /></label>
+          <label class="admin-form__full">Gambar<input id="adminProductImage" type="text" placeholder="assets/img/bag.svg" /></label>
+          <label class="admin-form__full">Deskripsi<textarea id="adminProductDescription" rows="2"></textarea></label>
+        </div>
+        <button class="button button--primary" type="submit">Simpan produk</button>
+      </form>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th></th></tr></thead>
+          <tbody id="adminProductsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="admin-panel" id="adminPanelPengguna" hidden>
+      <form class="admin-form" id="adminUserForm">
+        <h3>Buat akun baru</h3>
+        <div class="admin-form__grid">
+          <label>Nama<input id="adminUserName" type="text" required /></label>
+          <label>Email<input id="adminUserEmail" type="email" required /></label>
+          <label>Kata sandi<input id="adminUserPassword" type="password" minlength="6" required /></label>
+          <label>Peran<select id="adminUserRole"><option value="user">Pelanggan</option><option value="admin">Admin</option></select></label>
+        </div>
+        <button class="button button--primary" type="submit">Buat akun</button>
+      </form>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Nama</th><th>Email</th><th>Pesanan</th><th>Total belanja</th><th>Peran</th></tr></thead>
+          <tbody id="adminUsersTable"></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

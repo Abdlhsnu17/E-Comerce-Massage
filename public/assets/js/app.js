@@ -17,8 +17,11 @@ const state = {
   user: null,
   orders: [],
   pendingCheckout: false,
-  shippingCost: 20000
+  shippingCost: 20000,
+  admin: { tab: "ringkasan", orders: [], products: [], users: [], categories: [] }
 };
+
+const isAdmin = () => state.user?.role === "admin";
 
 const SHIPPING_COST = { regular: 20000, express: 35000 };
 
@@ -42,6 +45,7 @@ const overlay = byId("overlay");
 const authModal = byId("authModal");
 const checkoutModal = byId("checkoutModal");
 const ordersModal = byId("ordersModal");
+const adminModal = byId("adminModal");
 const toast = byId("toast");
 
 function productById(id) {

@@ -4,7 +4,8 @@ const { register, login, me, logout } = require("../controllers/authController")
 const { getCart, addItem, updateItem, removeItem } = require("../controllers/cartController");
 const { createOrder, listOrders } = require("../controllers/orderController");
 const { listFavorites, toggleFavorite, subscribeNewsletter } = require("../controllers/favoriteController");
-const { requireAuth } = require("../middleware/auth");
+const admin = require("../controllers/adminController");
+const { requireAuth, requireAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -33,5 +34,17 @@ router.get("/favorites", listFavorites);
 router.post("/favorites/:productId", toggleFavorite);
 
 router.post("/newsletter", subscribeNewsletter);
+
+// Panel admin — setiap rute memverifikasi ulang users.role ke database.
+router.get("/admin/stats", requireAdmin, admin.getStats);
+router.get("/admin/orders", requireAdmin, admin.listAllOrders);
+router.patch("/admin/orders/:id/status", requireAdmin, admin.updateOrderStatus);
+router.get("/admin/products", requireAdmin, admin.listAllProducts);
+router.post("/admin/products", requireAdmin, admin.createProduct);
+router.patch("/admin/products/:id", requireAdmin, admin.updateProduct);
+router.delete("/admin/products/:id", requireAdmin, admin.deactivateProduct);
+router.get("/admin/users", requireAdmin, admin.listUsers);
+router.post("/admin/users", requireAdmin, admin.createUser);
+router.patch("/admin/users/:id/role", requireAdmin, admin.updateUserRole);
 
 module.exports = router;

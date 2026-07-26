@@ -53,7 +53,11 @@ CREATE TABLE products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- Akun pelanggan
+-- Akun pengguna.
+-- Kolom `role` memisahkan pelanggan biasa dari pengelola toko: hanya baris
+-- ber-role 'admin' yang boleh menembus endpoint /api/admin/*.
+-- Pendaftaran mandiri selalu menghasilkan 'user'; admin dibuat lewat seed
+-- atau dipromosikan admin lain.
 -- ---------------------------------------------------------------------
 CREATE TABLE users (
   id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -61,10 +65,12 @@ CREATE TABLE users (
   email          VARCHAR(160) NOT NULL,
   password_hash  VARCHAR(255) NOT NULL,
   phone          VARCHAR(30)  NULL,
+  role           ENUM('user','admin') NOT NULL DEFAULT 'user',
   created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_users_email (email)
+  UNIQUE KEY uq_users_email (email),
+  KEY idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------

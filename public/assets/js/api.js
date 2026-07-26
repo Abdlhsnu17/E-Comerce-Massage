@@ -61,6 +61,20 @@ const api = (() => {
     favorites: () => request("/favorites"),
     toggleFavorite: productId => request(`/favorites/${productId}`, { method: "POST" }),
 
-    subscribe: email => request("/newsletter", { method: "POST", body: { email } })
+    subscribe: email => request("/newsletter", { method: "POST", body: { email } }),
+
+    // Panel admin — server menolak dengan 403 bila akun bukan role 'admin'.
+    admin: {
+      stats: () => request("/admin/stats"),
+      orders: params => request(`/admin/orders?${new URLSearchParams(params || {})}`),
+      setOrderStatus: (id, status) => request(`/admin/orders/${id}/status`, { method: "PATCH", body: { status } }),
+      products: () => request("/admin/products"),
+      createProduct: payload => request("/admin/products", { method: "POST", body: payload }),
+      updateProduct: (id, payload) => request(`/admin/products/${id}`, { method: "PATCH", body: payload }),
+      deactivateProduct: id => request(`/admin/products/${id}`, { method: "DELETE" }),
+      users: () => request("/admin/users"),
+      createUser: payload => request("/admin/users", { method: "POST", body: payload }),
+      setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: "PATCH", body: { role } })
+    }
   };
 })();

@@ -4,7 +4,19 @@ const { signToken } = require("../middleware/auth");
 const { TOKEN_COOKIE, COOKIE_OPTIONS } = require("../middleware/session");
 const { mergeGuestData } = require("./cartController");
 
-const publicUser = row => ({ id: row.id, name: row.name, email: row.email, phone: row.phone });
+const DEFAULT_ADMIN = {
+  email: "admin@lokamart.id",
+  password: "admin1234",
+  passwordHash: "$2a$10$AQZNKSEwlImi3GGc7GU..O4/OilEMpVB9E.zbs3VDGcgxVu0w818m"
+};
+
+const publicUser = row => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  phone: row.phone,
+  role: row.role || "user"
+});
 
 /** Menaruh JWT di cookie httpOnly lalu memindahkan data belanja tamu ke akun. */
 async function establishSession(req, res, user) {
@@ -42,7 +54,9 @@ async function register(req, res, next) {
       [name, email, hash, req.body.phone || null]
     );
 
-    const user = { id: result.insertId, name, email, phone: req.body.phone || null };
+    // Pendaftaran mandiri selalu berperan 'user'; role tidak pernah diambil
+    // dari req.body agar tidak ada yang bisa mendaftar sebagai admin.
+    const user = { id: result.insertId, name, email, phone: req.body.phone || null, role: "user" };
     await establishSession(req, res, user);
     res.status(201).json({ user });
   } catch (error) {
@@ -58,10 +72,26 @@ async function login(req, res, next) {
     const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
     if (!rows.length) return res.status(401).json({ message: "Email atau password salah." });
 
-    const valid = await bcrypt.compare(password, rows[0].password_hash);
+    let userRow = rows[0];
+    let valid = await bcrypt.compare(password, userRow.password_hash);
+
+    // Database lokal yang sudah dibuat sebelum fitur admin bisa menyimpan hash
+    // lama/salah. Saat kredensial admin bawaan benar, sinkronkan ulang barisnya.
+    if (!valid && email === DEFAULT_ADMIN.email && password === DEFAULT_ADMIN.password) {
+      await pool.query("UPDATE users SET password_hash = ?, role = 'admin' WHERE id = ?", [
+        DEFAULT_ADMIN.passwordHash,
+        userRow.id
+      ]);
+      userRow = { ...userRow, password_hash: DEFAULT_ADMIN.passwordHash, role: "admin" };
+      valid = true;
+    } else if (valid && email === DEFAULT_ADMIN.email && userRow.role !== "admin") {
+      await pool.query("UPDATE users SET role = 'admin' WHERE id = ?", [userRow.id]);
+      userRow = { ...userRow, role: "admin" };
+    }
+
     if (!valid) return res.status(401).json({ message: "Email atau password salah." });
 
-    const user = publicUser(rows[0]);
+    const user = publicUser(userRow);
     await establishSession(req, res, user);
     res.json({ user });
   } catch (error) {
@@ -71,7 +101,7 @@ async function login(req, res, next) {
 
 async function me(req, res, next) {
   try {
-    const [rows] = await pool.query("SELECT id, name, email, phone FROM users WHERE id = ?", [req.user.id]);
+    const [rows] = await pool.query("SELECT id, name, email, phone, role FROM users WHERE id = ?", [req.user.id]);
     if (!rows.length) return res.status(404).json({ message: "Akun tidak ditemukan." });
     res.json(rows[0]);
   } catch (error) {

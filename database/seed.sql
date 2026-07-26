@@ -50,7 +50,11 @@ INSERT INTO products
       'Lampu meja LED dengan tiga tingkat kehangatan cahaya.',
       429000.00,   499000.00, 4.8, 173, 44, 'Baru',       'assets/img/lamp.svg');
 
--- Akun demo — email: demo@lokamart.id, password: demo1234
-INSERT INTO users (id, name, email, password_hash, phone) VALUES
+-- Akun bawaan.
+--   Pelanggan — demo@lokamart.id  / demo1234
+--   Admin     — admin@lokamart.id / admin1234  (role 'admin')
+INSERT INTO users (id, name, email, password_hash, phone, role) VALUES
   (1, 'Pelanggan Demo', 'demo@lokamart.id',
-   '$2a$10$ckl41Y0ez73jJZjQhdl17et9g2tFZO41EeyOeVgIaPbS/0nCO3a8S', '081234567890');
+   '$2a$10$ckl41Y0ez73jJZjQhdl17et9g2tFZO41EeyOeVgIaPbS/0nCO3a8S', '081234567890', 'user'),
+  (2, 'Administrator LokaMart', 'admin@lokamart.id',
+   '$2a$10$AQZNKSEwlImi3GGc7GU..O4/OilEMpVB9E.zbs3VDGcgxVu0w818m', '081200000000', 'admin');
