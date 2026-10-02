@@ -6,7 +6,7 @@ const { pool } = require("../config/db");
 async function createAdmin() {
   const email = (process.env.BOOTSTRAP_ADMIN_EMAIL || "").trim().toLowerCase();
   const password = process.env.BOOTSTRAP_ADMIN_PASSWORD || "";
-  const name = (process.env.BOOTSTRAP_ADMIN_NAME || "Administrator Sentuhan Kecil").trim();
+  const name = (process.env.BOOTSTRAP_ADMIN_NAME || "Administrator Aera Baby Spa").trim();
 
   if (!email || password.length < 12 || !name) {
     throw new Error("Isi BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME, dan BOOTSTRAP_ADMIN_PASSWORD minimal 12 karakter di .env.");

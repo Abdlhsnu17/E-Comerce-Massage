@@ -1,8 +1,8 @@
-# PRD - Sentuhan Kecil
+# PRD - Aera Baby Spa
 
 ## 1. Ringkasan produk
 
-Sentuhan Kecil adalah platform booking dan penjualan layanan pijat bayi serta spa keluarga yang ditujukan untuk orang tua yang ingin mencari layanan perawatan bayi yang aman, nyaman, dan terjamin. Produk ini menggabungkan katalog layanan, proses checkout, manajemen order, serta panel admin dalam satu sistem berbasis web.
+Aera Baby Spa adalah platform booking dan penjualan layanan pijat bayi serta spa keluarga yang ditujukan untuk orang tua yang ingin mencari layanan perawatan bayi yang aman, nyaman, dan terjamin. Produk ini menggabungkan katalog layanan, proses checkout, manajemen order, serta panel admin dalam satu sistem berbasis web.
 
 Tujuan utama produk ini adalah mempercepat proses booking layanan, memperjelas informasi layanan, dan memudahkan admin dalam mengelola pesanan dan konten website.
 
@@ -263,4 +263,4 @@ Sistem harus:
 
 ## 15. Kesimpulan
 
-Sentuhan Kecil adalah produk berbasis web yang menggabungkan kebutuhan operasional layanan pijat bayi dengan kebutuhan pelanggan untuk mendapatkan informasi dan booking yang cepat. Dengan fokus pada katalog layanan, proses checkout, dan pengelolaan admin, produk ini menjadi fondasi digital yang siap diperluas ke arah layanan pelanggan yang lebih kompleks di masa depan.
+Aera Baby Spa adalah produk berbasis web yang menggabungkan kebutuhan operasional layanan pijat bayi dengan kebutuhan pelanggan untuk mendapatkan informasi dan booking yang cepat. Dengan fokus pada katalog layanan, proses checkout, dan pengelolaan admin, produk ini menjadi fondasi digital yang siap diperluas ke arah layanan pelanggan yang lebih kompleks di masa depan.

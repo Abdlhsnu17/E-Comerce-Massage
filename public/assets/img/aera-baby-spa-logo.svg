@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 250" role="img" aria-labelledby="title">
+  <title id="title">Aera Baby Spa</title>
+  <g transform="translate(22 15)">
+    <path fill="#ff1684" d="M0 0h118c66 0 120 54 120 120v72H172V94H68L0 136v-36h104V72H0Zm0 136 68-42v98h104l-38 68H60c-33 0-60-27-60-60Z"/>
+    <text x="258" y="148" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="83" font-weight="800" letter-spacing="-5"><tspan fill="#00a323">Aera</tspan><tspan fill="#ff1684">Baby</tspan><tspan fill="#5d92e6">Spa</tspan></text>
+  </g>
+</svg>

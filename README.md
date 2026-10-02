@@ -1,6 +1,6 @@
-# Sentuhan Kecil
+# Aera Baby Spa
 
-Sentuhan Kecil adalah platform booking dan penjualan layanan pijat bayi serta spa keluarga berbasis web. Aplikasi ini dibangun dengan Node.js, Express, dan MySQL, dengan arsitektur API dan frontend statis yang memudahkan pengelolaan katalog, keranjang belanja, checkout, dan panel admin.
+Aera Baby Spa adalah platform booking dan penjualan layanan pijat bayi serta spa keluarga berbasis web. Aplikasi ini dibangun dengan Node.js, Express, dan MySQL, dengan arsitektur API dan frontend statis yang memudahkan pengelolaan katalog, keranjang belanja, checkout, dan panel admin.
 
 ## Ringkasan proyek
 
@@ -61,7 +61,7 @@ DB_NAME=sentuhan_kecil_db
 JWT_SECRET=isi_dengan_string_acak_minimal_32_karakter
 JWT_EXPIRES_IN=7d
 BOOTSTRAP_ADMIN_EMAIL=admin@email.com
-BOOTSTRAP_ADMIN_NAME=Administrator Sentuhan Kecil
+BOOTSTRAP_ADMIN_NAME=Administrator Aera Baby Spa
 BOOTSTRAP_ADMIN_PASSWORD=PasswordMinimal12Karakter
 APP_URL=http://localhost:3000
 # Konfigurasi SMTP untuk fitur lupa password
@@ -70,7 +70,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=username
 SMTP_PASS=password-aplikasi-atau-api-key
-MAIL_FROM="Sentuhan Kecil <no-reply@example.com>"
+MAIL_FROM="Aera Baby Spa <no-reply@example.com>"
 ```
 
 ## Menjalankan aplikasi

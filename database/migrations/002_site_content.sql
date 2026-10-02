@@ -11,7 +11,7 @@ VALUES
   (1,
    'Waktu istimewa untuk si kecil dan keluarga.',
    'Setiap sesi dilakukan dengan tempo lembut dan komunikasi yang baik bersama orang tua.',
-   'Tentang Sentuhan Kecil',
+   'Tentang Aera Baby Spa',
    'Ruang yang mengutamakan rasa nyaman.',
    'Kami percaya pengalaman pijat bayi yang baik dimulai dengan mendengarkan orang tua dan memperhatikan respons bayi. Tidak ada sesi yang dipaksakan; kenyamanan si kecil selalu menjadi prioritas.',
    NULL)

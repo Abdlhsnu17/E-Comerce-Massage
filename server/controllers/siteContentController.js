@@ -1,6 +1,6 @@
 const { pool } = require("../config/db");
 
-const EMPTY_CONTENT = { servicesTitle: "Waktu istimewa untuk si kecil dan keluarga.", servicesIntro: "", aboutLabel: "Tentang Sentuhan Kecil", aboutTitle: "Ruang yang mengutamakan rasa nyaman.", aboutText: "", aboutImage: "" };
+const EMPTY_CONTENT = { servicesTitle: "Waktu istimewa untuk si kecil dan keluarga.", servicesIntro: "", aboutLabel: "Tentang Aera Baby Spa", aboutTitle: "Ruang yang mengutamakan rasa nyaman.", aboutText: "", aboutImage: "" };
 
 async function getContent(_req, res, next) {
   try {

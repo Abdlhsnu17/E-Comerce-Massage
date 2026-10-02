@@ -23,7 +23,7 @@ async function sendPasswordResetEmail({ to, resetUrl }) {
   await transporter.sendMail({
     from: process.env.MAIL_FROM,
     to,
-    subject: "Atur ulang password akun Sentuhan Kecil",
+    subject: "Atur ulang password akun Aera Baby Spa",
     text: `Kami menerima permintaan untuk mengatur ulang password Anda. Buka tautan ini dalam 30 menit: ${resetUrl}\n\nJika bukan Anda, abaikan email ini.`,
     html: `<p>Kami menerima permintaan untuk mengatur ulang password Anda.</p><p><a href="${resetUrl}">Atur ulang password</a></p><p>Tautan berlaku selama 30 menit. Jika bukan Anda, abaikan email ini.</p>`
   });

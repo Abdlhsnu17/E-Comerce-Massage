@@ -20,7 +20,7 @@ async function start() {
   }
 
   const server = app.listen(PORT, () =>
-    console.log(`✔ Sentuhan Kecil berjalan di http://localhost:${PORT} — buka alamat ini di browser, bukan Live Server.`)
+    console.log(`✔ Aera Baby Spa berjalan di http://localhost:${PORT} — buka alamat ini di browser, bukan Live Server.`)
   );
 
   server.on("error", error => {
