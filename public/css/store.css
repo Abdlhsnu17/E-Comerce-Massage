@@ -14,3 +14,18 @@
 .auth-dialog{border-radius:var(--radius-lg);padding:32px;box-shadow:var(--shadow-card)}
 .auth-dialog input{padding:12px;border-radius:var(--radius-sm)}
 @media(max-width:680px){.store-grid,.news-grid{gap:16px}.auth-actions{gap:5px}.auth-link{font-size:11px;padding-inline:8px}}
+/* Keep the service catalog compact while preserving readable cards on small screens. */
+.store-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.store-card{padding:16px}
+.store-card img{height:125px;margin-bottom:10px}
+.store-card h3{margin:7px 0;font-size:1.05rem}
+.store-card p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.45}
+.store-card strong{margin:10px 0;font-size:1rem}
+.store-card .button{min-height:42px;padding-inline:12px;font-size:12px}
+.store-card img{height:110px}
+.store-card > div > .store-card__duration{margin:4px 0 0}
+.store-card > div > p{margin:8px 0}
+.store-card .service-like-row strong{margin:0}
+@media(max-width:900px){.store-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.store-card .button{width:100%;padding-inline:6px;white-space:normal}}
+@media(max-width:360px){.store-grid{grid-template-columns:1fr}}
