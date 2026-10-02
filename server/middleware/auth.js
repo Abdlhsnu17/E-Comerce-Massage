@@ -1,14 +1,17 @@
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { TOKEN_COOKIE } = require("./session");
 const { pool } = require("../config/db");
 
-const SECRET = process.env.JWT_SECRET || "lokamart-dev-secret";
+const SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : crypto.randomBytes(32).toString("hex"));
 
 // Kunci lemah membuat cookie sesi bisa dipalsukan siapa pun yang tahu isinya.
 if (SECRET.length < 32) {
   const pesan = "JWT_SECRET terlalu pendek. Isi dengan string acak minimal 32 karakter di .env.";
-  if (process.env.NODE_ENV === "production") throw new Error(pesan);
+  if (process.env.NODE_ENV === "production" || process.env.JWT_SECRET) throw new Error(pesan);
   console.warn(`⚠ ${pesan}`);
+} else if (!process.env.JWT_SECRET) {
+  console.warn("⚠ JWT_SECRET sementara dibuat otomatis untuk development; sesi login akan berakhir saat server restart.");
 }
 
 function signToken(user) {

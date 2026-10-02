@@ -13,13 +13,14 @@ const api = (() => {
 
   async function request(path, { method = "GET", body } = {}) {
     const headers = {};
-    if (body) headers["Content-Type"] = "application/json";
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    if (body && !isFormData) headers["Content-Type"] = "application/json";
 
     const response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
       credentials: "same-origin", // kirim cookie sesi
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
     });
 
     const data = response.status === 204 ? null : await response.json().catch(() => null);
@@ -44,6 +45,7 @@ const api = (() => {
     SERVER_URL,
     products: params => request(`/products?${new URLSearchParams(params)}`),
     categories: () => request("/categories"),
+    announcements: () => request("/announcements"),
 
     register: payload => request("/auth/register", { method: "POST", body: payload }),
     login: payload => request("/auth/login", { method: "POST", body: payload }),
@@ -72,9 +74,18 @@ const api = (() => {
       createProduct: payload => request("/admin/products", { method: "POST", body: payload }),
       updateProduct: (id, payload) => request(`/admin/products/${id}`, { method: "PATCH", body: payload }),
       deactivateProduct: id => request(`/admin/products/${id}`, { method: "DELETE" }),
+      uploadImage: file => {
+        const body = new FormData();
+        body.append("image", file);
+        return request("/admin/uploads/images", { method: "POST", body });
+      },
       users: () => request("/admin/users"),
       createUser: payload => request("/admin/users", { method: "POST", body: payload }),
-      setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: "PATCH", body: { role } })
+      setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: "PATCH", body: { role } }),
+      announcements: () => request("/admin/announcements"),
+      createAnnouncement: payload => request("/admin/announcements", { method: "POST", body: payload }),
+      updateAnnouncement: (id, payload) => request(`/admin/announcements/${id}`, { method: "PATCH", body: payload }),
+      deleteAnnouncement: id => request(`/admin/announcements/${id}`, { method: "DELETE" })
     }
   };
 })();

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#edf6f2" />
+  <title>Dashboard Admin — Sentuhan Kecil</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/baby-massage.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+<body class="dashboard-page">
+  <header class="dashboard-header">
+    <div class="wrap dashboard-header__inner">
+      <a class="brand" href="/" aria-label="Sentuhan Kecil beranda"><span class="brand__symbol" aria-hidden="true">s</span><span>sentuhan kecil<small>dashboard admin</small></span></a>
+      <div class="dashboard-header__actions"><span id="admin-name">Memeriksa sesi…</span><a class="dashboard-back" href="/">Lihat website <span aria-hidden="true">↗</span></a><button id="logout-button" type="button">Keluar</button><button id="menu-toggle" class="menu-toggle" type="button" aria-label="Buka menu" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button></div>
+    </div>
+  </header>
+
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div><aside id="dashboard-sidebar" class="dashboard-sidebar" aria-label="Navigasi dashboard"><div class="sidebar-label">MENU UTAMA</div><a class="sidebar-link" href="#ringkasan">▦ <span>Ringkasan</span></a><a class="sidebar-link" href="#pesanan">▤ <span>Pesanan</span></a><a class="sidebar-link" href="#layanan">◫ <span>Layanan</span></a><a class="sidebar-link" href="#konten">◉ <span>Konten website</span></a><a class="sidebar-link" href="#berita">▧ <span>Berita</span></a><a class="sidebar-link" href="#keamanan">⌑ <span>Akun & keamanan</span></a></aside>
+  <main class="wrap dashboard-main">
+    <p id="dashboard-message" class="dashboard-message" role="status" aria-live="polite">Memuat data…</p>
+
+    <section id="dashboard-content" hidden>
+      <div id="ringkasan"><div class="metric-grid" id="metric-grid"></div></div>
+      <section id="pesanan" class="dashboard-section">
+        <div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Aktivitas</span><h2>Pesanan terbaru</h2></div><span id="order-count" class="section-count"></span></div>
+        <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Pelanggan</th><th>Layanan</th><th>Jadwal</th><th>Lokasi</th><th>Total</th><th>Status pesanan</th><th>Status sesi</th><th>Pembayaran</th></tr></thead><tbody id="orders-table"></tbody></table></div>
+        <p class="empty-message" id="orders-empty" hidden>Belum ada pesanan.</p>
+      </section>
+      <section id="layanan" class="dashboard-section">
+        <div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Katalog</span><h2>Layanan terdaftar</h2></div><div class="service-heading-actions"><span id="service-count" class="section-count"></span><button id="add-service-button" class="service-add-button" type="button">+ Tambah layanan</button></div></div>
+        <div id="service-editor" class="service-editor" hidden>
+          <form id="service-form">
+            <div class="service-form-heading"><h3 id="service-form-title">Tambah layanan</h3><button id="cancel-service-edit" class="service-cancel-button" type="button">Batal</button></div>
+            <input name="id" type="hidden" />
+            <div class="service-form-grid">
+              <label>Nama layanan<input name="name" type="text" maxlength="150" required /></label>
+              <label>Kategori<select name="categoryId" required><option value="">Pilih kategori</option></select></label>
+              <label>Durasi (menit)<input name="durationMinutes" type="number" min="1" step="5" required /></label>
+              <label>Harga (Rp)<input name="price" type="number" min="0" step="1000" required /></label>
+              <label>Stok / kuota<input name="stock" type="number" min="0" step="1" value="0" required /></label>
+              <label class="service-form-full">Deskripsi<textarea name="description" rows="3"></textarea></label>
+              <label class="service-form-full">Foto layanan (JPG, PNG, WEBP, GIF; maks. 5 MB)<input name="imageFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /><input name="image" type="hidden" /><img id="service-image-preview" class="service-image-preview" alt="Pratinjau foto layanan" hidden /></label>
+            </div>
+            <div class="service-form-footer"><p id="service-form-message" role="status" aria-live="polite"></p><button id="save-service-button" class="service-add-button" type="submit">Simpan layanan</button></div>
+          </form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Nama layanan</th><th>Kategori</th><th>Durasi</th><th>Harga</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="services-table"></tbody></table></div>
+        <p class="empty-message" id="services-empty" hidden>Belum ada layanan terdaftar.</p>
+      </section>
+      <section id="konten" class="dashboard-section"><div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Editor website</span><h2>Konten halaman utama</h2></div></div><form id="site-content-form" class="service-editor"><div class="service-form-grid"><label>Judul layanan<input name="servicesTitle" maxlength="255" required></label><label>Label bagian tentang<input name="aboutLabel" maxlength="120" required></label><label class="service-form-full">Pengantar layanan<textarea name="servicesIntro" rows="2"></textarea></label><label>Judul tentang kami<input name="aboutTitle" maxlength="255" required></label><label>URL foto tentang<input name="aboutImage" type="url"></label><label class="service-form-full">Deskripsi tentang<textarea name="aboutText" rows="4" required></textarea></label></div><div class="service-form-footer"><p id="site-content-message" role="status" aria-live="polite"></p><button class="service-add-button" type="submit">Simpan konten</button></div></form></section>
+      <section id="berita" class="dashboard-section announcements-admin"><div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Konten</span><h2>Berita &amp; pengumuman</h2></div><button id="add-announcement" class="service-add-button" type="button">+ Tambah</button></div><form id="announcement-form" class="service-editor" hidden><input type="hidden" name="id"><div class="service-form-grid"><label>Jenis<select name="kind"><option>Berita</option><option>Pengumuman</option></select></label><label>Judul<input name="title" maxlength="180" required></label><label class="service-form-full">Ringkasan<input name="excerpt" maxlength="255"></label><label class="service-form-full">Isi<textarea name="content" rows="4" required></textarea></label><label><input name="isPublished" type="checkbox"> Terbitkan sekarang</label></div><div class="service-form-footer"><button id="cancel-announcement" type="button">Batal</button><button class="service-add-button" type="submit">Simpan</button><p id="announcement-message"></p></div></form><div id="announcements-admin-list" class="table-wrap"></div></section>
+      <section id="keamanan" class="dashboard-section"><div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Akun admin</span><h2>Ganti password</h2></div></div><form id="password-form" class="service-editor"><div class="service-form-grid"><label>Password saat ini<input name="currentPassword" type="password" autocomplete="current-password" required></label><label>Password baru<input name="newPassword" type="password" minlength="12" autocomplete="new-password" required></label><label>Ulangi password baru<input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></label></div><div class="service-form-footer"><p id="password-message" role="status" aria-live="polite"></p><button class="service-add-button" type="submit">Perbarui password</button></div></form></section>
+    </section>
+
+    <section id="access-message" class="access-message" hidden><span class="eyebrow"><i></i> Akses admin</span><h2 id="access-title">Dashboard hanya untuk admin.</h2><p id="access-copy">Masuk menggunakan akun admin untuk melihat data pengelolaan.</p><a class="button button--primary" href="/?login=1">Masuk ke akun</a></section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

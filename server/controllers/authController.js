@@ -4,12 +4,6 @@ const { signToken } = require("../middleware/auth");
 const { TOKEN_COOKIE, COOKIE_OPTIONS } = require("../middleware/session");
 const { mergeGuestData } = require("./cartController");
 
-const DEFAULT_ADMIN = {
-  email: "admin@lokamart.id",
-  password: "admin1234",
-  passwordHash: "$2a$10$AQZNKSEwlImi3GGc7GU..O4/OilEMpVB9E.zbs3VDGcgxVu0w818m"
-};
-
 const publicUser = row => ({
   id: row.id,
   name: row.name,
@@ -72,28 +66,32 @@ async function login(req, res, next) {
     const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
     if (!rows.length) return res.status(401).json({ message: "Email atau password salah." });
 
-    let userRow = rows[0];
-    let valid = await bcrypt.compare(password, userRow.password_hash);
-
-    // Database lokal yang sudah dibuat sebelum fitur admin bisa menyimpan hash
-    // lama/salah. Saat kredensial admin bawaan benar, sinkronkan ulang barisnya.
-    if (!valid && email === DEFAULT_ADMIN.email && password === DEFAULT_ADMIN.password) {
-      await pool.query("UPDATE users SET password_hash = ?, role = 'admin' WHERE id = ?", [
-        DEFAULT_ADMIN.passwordHash,
-        userRow.id
-      ]);
-      userRow = { ...userRow, password_hash: DEFAULT_ADMIN.passwordHash, role: "admin" };
-      valid = true;
-    } else if (valid && email === DEFAULT_ADMIN.email && userRow.role !== "admin") {
-      await pool.query("UPDATE users SET role = 'admin' WHERE id = ?", [userRow.id]);
-      userRow = { ...userRow, role: "admin" };
+    const userRow = rows[0];
+    if (!await bcrypt.compare(password, userRow.password_hash)) {
+      return res.status(401).json({ message: "Email atau password salah." });
     }
-
-    if (!valid) return res.status(401).json({ message: "Email atau password salah." });
 
     const user = publicUser(userRow);
     await establishSession(req, res, user);
     res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (typeof newPassword !== "string" || newPassword.length < 12) {
+      return res.status(400).json({ message: "Password baru minimal 12 karakter." });
+    }
+    const [rows] = await pool.query("SELECT password_hash FROM users WHERE id = ?", [req.user.id]);
+    if (!rows.length || !await bcrypt.compare(currentPassword || "", rows[0].password_hash)) {
+      return res.status(400).json({ message: "Password saat ini tidak cocok." });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.user.id]);
+    res.json({ message: "Password berhasil diperbarui." });
   } catch (error) {
     next(error);
   }
@@ -114,4 +112,4 @@ function logout(_req, res) {
   res.json({ message: "Kamu telah keluar dari akun." });
 }
 
-module.exports = { register, login, me, logout };
+module.exports = { register, login, me, logout, changePassword };

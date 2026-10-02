@@ -12,27 +12,20 @@ const state = {
   category: "Semua",
   search: "",
   sort: "featured",
+  announcements: [],
   cart: { items: [], subtotal: 0, totalQty: 0 },
   favorites: new Set(),
   user: null,
   orders: [],
   pendingCheckout: false,
   shippingCost: 20000,
-  admin: { tab: "ringkasan", orders: [], products: [], users: [], categories: [] }
+  admin: {
+    tab: "ringkasan", orders: [], products: [], users: [], categories: [], announcements: [],
+    editingProductId: null, editingAnnouncementId: null
+  }
 };
 
 const isAdmin = () => state.user?.role === "admin";
-
-const SHIPPING_COST = { regular: 20000, express: 35000 };
-
-const rupiah = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0
-});
-
-const formatPrice = value => rupiah.format(Number(value) || 0);
-const byId = id => document.getElementById(id);
 
 const productGrid = byId("productGrid");
 const categoryFilters = byId("categoryFilters");
@@ -62,6 +55,36 @@ async function loadCategories() {
   const rows = await api.categories();
   state.categories = ["Semua", ...rows.map(row => row.name)];
   renderCategories();
+}
+
+async function loadAnnouncements() {
+  try {
+    state.announcements = await api.announcements();
+  } catch (error) {
+    state.announcements = [];
+    console.error(error);
+  }
+  renderAnnouncements();
+}
+
+function renderAnnouncements() {
+  const section = byId("announcementSection");
+  section.hidden = state.announcements.length === 0;
+  byId("announcementList").innerHTML = state.announcements.map(item => {
+    const summary = item.excerpt || item.content;
+    const date = item.publishedAt ? new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(new Date(item.publishedAt)) : "";
+    return `
+      <article class="announcement-card">
+        ${item.image ? `<img class="announcement-card__image" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" loading="lazy" />` : ""}
+        <div class="announcement-card__body">
+          <div class="announcement-card__meta"><span>${escapeHtml(item.kind)}</span><time>${escapeHtml(date)}</time></div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(summary)}</p>
+          ${item.excerpt && item.excerpt !== item.content ? `<details class="announcement-card__details"><summary>Baca selengkapnya</summary><p>${escapeHtml(item.content)}</p></details>` : ""}
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 function renderCategories() {
@@ -227,7 +250,7 @@ function closeModal(modal) {
 function closeAllPanels(hideOverlay = true) {
   cartDrawer.classList.remove("is-open");
   cartDrawer.setAttribute("aria-hidden", "true");
-  [authModal, checkoutModal, ordersModal].forEach(modal => {
+  [authModal, checkoutModal, ordersModal, adminModal].forEach(modal => {
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
   });
@@ -253,6 +276,7 @@ function openAuth(tab = "login") {
 
 function renderAccount() {
   byId("accountLabel").textContent = state.user ? state.user.name.split(" ")[0] : "Masuk";
+  byId("adminButton").hidden = !isAdmin();
 }
 
 async function loadFavorites() {
@@ -395,6 +419,238 @@ function renderOrders() {
   }).join("");
 }
 
+// ---------------------------------------------------------------- admin
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
+
+function renderAdminStats(stats) {
+  const cards = [
+    ["Pengguna", stats.totalUsers],
+    ["Produk aktif", stats.totalProducts - stats.inactiveProducts],
+    ["Pesanan", stats.totalOrders],
+    ["Perlu diproses", stats.pendingOrders],
+    ["Pendapatan", formatPrice(stats.revenue)],
+    ["Newsletter", stats.subscribers]
+  ];
+  byId("adminStats").innerHTML = cards.map(([label, value]) => `
+    <article class="admin-stat"><span>${label}</span><strong>${escapeHtml(value)}</strong></article>
+  `).join("");
+  byId("adminStatusTable").innerHTML = stats.byStatus.map(row => `
+    <tr><td>${escapeHtml(row.status)}</td><td>${escapeHtml(row.jumlah)}</td><td>${formatPrice(row.nilai)}</td></tr>
+  `).join("");
+  byId("adminTopTable").innerHTML = stats.topProducts.length
+    ? stats.topProducts.map(product => `
+      <tr><td>${escapeHtml(product.name)}</td><td>${escapeHtml(product.terjual)} terjual</td><td>${formatPrice(product.pendapatan)}</td></tr>
+    `).join("")
+    : '<tr><td colspan="3">Belum ada penjualan.</td></tr>';
+}
+
+async function loadAdminOrders() {
+  const params = {
+    status: byId("adminOrderStatusFilter").value,
+    q: byId("adminOrderSearch").value.trim()
+  };
+  state.admin.orders = await api.admin.orders(params);
+  byId("adminOrdersEmpty").hidden = state.admin.orders.length > 0;
+  byId("adminOrdersTable").innerHTML = state.admin.orders.map(order => `
+    <tr>
+      <td><strong>${escapeHtml(order.orderCode)}</strong><small>${escapeHtml(order.createdAt)}</small></td>
+      <td>${escapeHtml(order.customerName)}<small>${escapeHtml(order.customerEmail)}</small></td>
+      <td>${order.items.length} item</td>
+      <td>${formatPrice(order.total)}</td>
+      <td><select data-order-status="${order.id}" aria-label="Status pesanan ${escapeHtml(order.orderCode)}">
+        ${ADMIN_ORDER_STATUSES.map(status => `<option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}
+      </select></td>
+    </tr>
+  `).join("");
+}
+
+function renderAdminProducts() {
+  byId("adminProductCategory").innerHTML = state.admin.categories.map(category => `
+    <option value="${category.id}">${escapeHtml(category.name)}</option>
+  `).join("");
+  byId("adminProductsTable").innerHTML = state.admin.products.map(product => `
+    <tr>
+      <td>${escapeHtml(product.name)}</td>
+      <td>${escapeHtml(product.category)}</td>
+      <td>${formatPrice(product.price)}</td>
+      <td>${escapeHtml(product.stock)}</td>
+      <td>${product.isActive ? "Aktif" : "Nonaktif"}</td>
+      <td class="admin-actions">
+        <button class="text-button" data-edit-product="${product.id}" type="button">Edit</button>
+        <button class="text-button" data-toggle-product="${product.id}" type="button">${product.isActive ? "Nonaktifkan" : "Aktifkan"}</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+async function loadAdminProducts() {
+  const [products, categories] = await Promise.all([api.admin.products(), api.categories()]);
+  state.admin.products = products;
+  state.admin.categories = categories;
+  renderAdminProducts();
+}
+
+async function loadAdminUsers() {
+  state.admin.users = await api.admin.users();
+  byId("adminUsersTable").innerHTML = state.admin.users.map(user => `
+    <tr>
+      <td>${escapeHtml(user.name)}</td>
+      <td>${escapeHtml(user.email)}</td>
+      <td>${escapeHtml(user.totalOrders)}</td>
+      <td>${formatPrice(user.totalBelanja)}</td>
+      <td><select data-user-role="${user.id}" aria-label="Peran ${escapeHtml(user.email)}">
+        <option value="user" ${user.role === "user" ? "selected" : ""}>Pelanggan</option>
+        <option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option>
+      </select></td>
+    </tr>
+  `).join("");
+}
+
+async function loadAdminAnnouncements() {
+  state.admin.announcements = await api.admin.announcements();
+  byId("adminAnnouncementsTable").innerHTML = state.admin.announcements.map(item => `
+    <tr>
+      <td>${escapeHtml(item.title)}</td>
+      <td>${escapeHtml(item.kind)}</td>
+      <td>${item.isPublished ? "Terbit" : "Draft"}</td>
+      <td class="admin-actions">
+        <button class="text-button" data-edit-announcement="${item.id}" type="button">Edit</button>
+        <button class="text-button" data-toggle-announcement="${item.id}" type="button">${item.isPublished ? "Jadikan draft" : "Terbitkan"}</button>
+        <button class="text-button" data-delete-announcement="${item.id}" type="button">Hapus</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+async function openAdminDashboard() {
+  if (!isAdmin()) return showToast("Dashboard hanya tersedia untuk admin.");
+  byId("adminGreeting").textContent = `Halo ${state.user.name}, berikut ringkasan toko.`;
+  openModal(adminModal);
+  try {
+    const [stats] = await Promise.all([
+      api.admin.stats(),
+      loadAdminOrders(),
+      loadAdminProducts(),
+      loadAdminUsers(),
+      loadAdminAnnouncements()
+    ]);
+    renderAdminStats(stats);
+    showAdminTab(state.admin.tab);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function showAdminTab(tab) {
+  state.admin.tab = tab;
+  document.querySelectorAll("[data-admin-tab]").forEach(button => {
+    button.classList.toggle("is-active", button.dataset.adminTab === tab);
+  });
+  document.querySelectorAll(".admin-panel").forEach(panel => {
+    const panelName = tab === "berita" ? "Berita" : `${tab[0].toUpperCase()}${tab.slice(1)}`;
+    panel.hidden = panel.id !== `adminPanel${panelName}`;
+  });
+}
+
+function resetAdminProductForm() {
+  state.admin.editingProductId = null;
+  byId("adminProductForm").reset();
+  byId("adminProductFormTitle").textContent = "Tambah produk baru";
+  byId("adminProductSubmit").textContent = "Simpan produk";
+  byId("adminProductCancel").hidden = true;
+  clearImagePreview("adminProductImageFile", "adminProductImagePreview");
+}
+
+function editAdminProduct(productId) {
+  const product = state.admin.products.find(item => item.id === Number(productId));
+  if (!product) return;
+  state.admin.editingProductId = product.id;
+  byId("adminProductName").value = product.name;
+  byId("adminProductCategory").value = product.categoryId;
+  byId("adminProductPrice").value = product.price;
+  byId("adminProductOldPrice").value = product.oldPrice ?? "";
+  byId("adminProductStock").value = product.stock;
+  byId("adminProductBadge").value = product.badge || "";
+  byId("adminProductImage").value = product.image || "";
+  byId("adminProductDescription").value = product.description || "";
+  setImagePreview("adminProductImagePreview", product.image);
+  byId("adminProductFormTitle").textContent = "Edit produk";
+  byId("adminProductSubmit").textContent = "Simpan perubahan";
+  byId("adminProductCancel").hidden = false;
+  byId("adminProductForm").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+const imagePreviewUrls = new Map();
+
+function setImagePreview(previewId, source) {
+  const previousUrl = imagePreviewUrls.get(previewId);
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  imagePreviewUrls.delete(previewId);
+  const preview = byId(previewId);
+  preview.src = source || "";
+  preview.hidden = !source;
+}
+
+function clearImagePreview(inputId, previewId) {
+  byId(inputId).value = "";
+  setImagePreview(previewId, "");
+}
+
+function bindImagePreview(inputId, previewId) {
+  byId(inputId).addEventListener("change", event => {
+    const file = event.target.files[0];
+    if (!file) return setImagePreview(previewId, "");
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      clearImagePreview(inputId, previewId);
+      return showToast("Pilih gambar JPG, PNG, WEBP, atau GIF maksimal 5 MB.");
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewId, previewUrl);
+    imagePreviewUrls.set(previewId, previewUrl);
+  });
+}
+
+async function uploadSelectedImage(inputId) {
+  const file = byId(inputId).files[0];
+  if (!file) return null;
+  return (await api.admin.uploadImage(file)).image;
+}
+
+function resetAdminAnnouncementForm() {
+  state.admin.editingAnnouncementId = null;
+  byId("adminAnnouncementForm").reset();
+  byId("adminAnnouncementFormTitle").textContent = "Buat berita atau pengumuman";
+  byId("adminAnnouncementSubmit").textContent = "Simpan berita";
+  byId("adminAnnouncementCancel").hidden = true;
+  clearImagePreview("adminAnnouncementImageFile", "adminAnnouncementImagePreview");
+}
+
+function editAdminAnnouncement(announcementId) {
+  const item = state.admin.announcements.find(entry => entry.id === Number(announcementId));
+  if (!item) return;
+  state.admin.editingAnnouncementId = item.id;
+  byId("adminAnnouncementTitle").value = item.title;
+  byId("adminAnnouncementKind").value = item.kind;
+  byId("adminAnnouncementExcerpt").value = item.excerpt || "";
+  byId("adminAnnouncementContent").value = item.content;
+  byId("adminAnnouncementImage").value = item.image || "";
+  byId("adminAnnouncementPublished").checked = Boolean(item.isPublished);
+  setImagePreview("adminAnnouncementImagePreview", item.image);
+  byId("adminAnnouncementFormTitle").textContent = "Edit berita atau pengumuman";
+  byId("adminAnnouncementSubmit").textContent = "Simpan perubahan";
+  byId("adminAnnouncementCancel").hidden = false;
+  byId("adminAnnouncementForm").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 // ---------------------------------------------------------------- toast
 
 let toastTimer;
@@ -473,6 +729,7 @@ globalSearch.addEventListener("keydown", event => {
 
 byId("cartButton").addEventListener("click", openCart);
 byId("accountButton").addEventListener("click", () => state.user ? openOrders() : openAuth("login"));
+byId("adminButton").addEventListener("click", openAdminDashboard);
 byId("heroOrdersButton").addEventListener("click", openOrders);
 byId("joinButton").addEventListener("click", () => openAuth("register"));
 byId("checkoutButton").addEventListener("click", openCheckout);
@@ -493,6 +750,182 @@ byId("cartItems").addEventListener("click", event => {
   if (plus) updateCartItem(plus.dataset.cartPlus, 1);
   if (minus) updateCartItem(minus.dataset.cartMinus, -1);
   if (remove) removeCartItem(remove.dataset.cartRemove);
+});
+
+document.querySelector(".admin-tabs").addEventListener("click", event => {
+  const button = event.target.closest("[data-admin-tab]");
+  if (button) showAdminTab(button.dataset.adminTab);
+});
+
+byId("adminOrderStatusFilter").addEventListener("change", () => {
+  loadAdminOrders().catch(error => showToast(error.message));
+});
+
+let adminSearchTimer;
+byId("adminOrderSearch").addEventListener("input", () => {
+  clearTimeout(adminSearchTimer);
+  adminSearchTimer = setTimeout(() => loadAdminOrders().catch(error => showToast(error.message)), 220);
+});
+
+byId("adminOrdersTable").addEventListener("change", async event => {
+  const select = event.target.closest("[data-order-status]");
+  if (!select) return;
+  try {
+    await api.admin.setOrderStatus(select.dataset.orderStatus, select.value);
+    await Promise.all([loadAdminOrders(), api.admin.stats().then(renderAdminStats)]);
+    showToast("Status pesanan diperbarui.");
+  } catch (error) {
+    showToast(error.message);
+    loadAdminOrders().catch(() => {});
+  }
+});
+
+byId("adminProductForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const oldPriceValue = byId("adminProductOldPrice").value;
+  const payload = {
+    name: byId("adminProductName").value.trim(),
+    categoryId: Number(byId("adminProductCategory").value),
+    price: Number(byId("adminProductPrice").value),
+    oldPrice: oldPriceValue === "" ? null : Number(oldPriceValue),
+    stock: Number(byId("adminProductStock").value),
+    badge: byId("adminProductBadge").value.trim(),
+    image: byId("adminProductImage").value.trim(),
+    description: byId("adminProductDescription").value.trim()
+  };
+  try {
+    const uploadedImage = await uploadSelectedImage("adminProductImageFile");
+    if (uploadedImage) payload.image = uploadedImage;
+    if (state.admin.editingProductId) {
+      await api.admin.updateProduct(state.admin.editingProductId, payload);
+      showToast("Produk diperbarui.");
+    } else {
+      await api.admin.createProduct(payload);
+      showToast("Produk ditambahkan.");
+    }
+    resetAdminProductForm();
+    await Promise.all([loadAdminProducts(), loadCatalog(), api.admin.stats().then(renderAdminStats)]);
+    await loadProducts();
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+byId("adminProductCancel").addEventListener("click", resetAdminProductForm);
+
+byId("adminProductsTable").addEventListener("click", async event => {
+  const editButton = event.target.closest("[data-edit-product]");
+  if (editButton) return editAdminProduct(editButton.dataset.editProduct);
+
+  const toggleButton = event.target.closest("[data-toggle-product]");
+  if (!toggleButton) return;
+  const product = state.admin.products.find(item => item.id === Number(toggleButton.dataset.toggleProduct));
+  if (!product) return;
+  const active = Boolean(product.isActive);
+  if (active && !window.confirm(`Nonaktifkan produk ${product.name}?`)) return;
+  try {
+    if (active) await api.admin.deactivateProduct(product.id);
+    else await api.admin.updateProduct(product.id, { isActive: true });
+    await Promise.all([loadAdminProducts(), loadCatalog(), api.admin.stats().then(renderAdminStats)]);
+    await loadProducts();
+    showToast(active ? "Produk dinonaktifkan." : "Produk diaktifkan kembali.");
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+byId("adminUserForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await api.admin.createUser({
+      name: byId("adminUserName").value.trim(),
+      email: byId("adminUserEmail").value.trim(),
+      password: byId("adminUserPassword").value,
+      role: byId("adminUserRole").value
+    });
+    event.target.reset();
+    await Promise.all([loadAdminUsers(), api.admin.stats().then(renderAdminStats)]);
+    showToast("Akun berhasil dibuat.");
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+byId("adminUsersTable").addEventListener("change", async event => {
+  const select = event.target.closest("[data-user-role]");
+  if (!select) return;
+  try {
+    await api.admin.setUserRole(select.dataset.userRole, select.value);
+    await Promise.all([loadAdminUsers(), api.admin.stats().then(renderAdminStats)]);
+    showToast("Peran akun diperbarui.");
+  } catch (error) {
+    showToast(error.message);
+    loadAdminUsers().catch(() => {});
+  }
+});
+
+bindImagePreview("adminProductImageFile", "adminProductImagePreview");
+bindImagePreview("adminAnnouncementImageFile", "adminAnnouncementImagePreview");
+
+byId("adminAnnouncementForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const payload = {
+    title: byId("adminAnnouncementTitle").value.trim(),
+    kind: byId("adminAnnouncementKind").value,
+    excerpt: byId("adminAnnouncementExcerpt").value.trim(),
+    content: byId("adminAnnouncementContent").value.trim(),
+    image: byId("adminAnnouncementImage").value.trim(),
+    isPublished: byId("adminAnnouncementPublished").checked
+  };
+  try {
+    const uploadedImage = await uploadSelectedImage("adminAnnouncementImageFile");
+    if (uploadedImage) payload.image = uploadedImage;
+    if (state.admin.editingAnnouncementId) {
+      await api.admin.updateAnnouncement(state.admin.editingAnnouncementId, payload);
+      showToast("Berita/pengumuman diperbarui.");
+    } else {
+      await api.admin.createAnnouncement(payload);
+      showToast("Berita/pengumuman berhasil dibuat.");
+    }
+    resetAdminAnnouncementForm();
+    await Promise.all([loadAdminAnnouncements(), loadAnnouncements()]);
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+byId("adminAnnouncementCancel").addEventListener("click", resetAdminAnnouncementForm);
+
+byId("adminAnnouncementsTable").addEventListener("click", async event => {
+  const editButton = event.target.closest("[data-edit-announcement]");
+  if (editButton) return editAdminAnnouncement(editButton.dataset.editAnnouncement);
+
+  const toggleButton = event.target.closest("[data-toggle-announcement]");
+  const deleteButton = event.target.closest("[data-delete-announcement]");
+  const itemId = Number(toggleButton?.dataset.toggleAnnouncement || deleteButton?.dataset.deleteAnnouncement);
+  const item = state.admin.announcements.find(entry => entry.id === itemId);
+  if (!item) return;
+
+  try {
+    if (deleteButton) {
+      if (!window.confirm(`Hapus berita/pengumuman “${item.title}”?`)) return;
+      await api.admin.deleteAnnouncement(item.id);
+      showToast("Berita/pengumuman dihapus.");
+    } else if (toggleButton) {
+      await api.admin.updateAnnouncement(item.id, {
+        title: item.title,
+        kind: item.kind,
+        excerpt: item.excerpt || "",
+        content: item.content,
+        image: item.image || "",
+        isPublished: !Boolean(item.isPublished)
+      });
+      showToast(item.isPublished ? "Berita disimpan sebagai draft." : "Berita diterbitkan.");
+    }
+    await Promise.all([loadAdminAnnouncements(), loadAnnouncements()]);
+  } catch (error) {
+    showToast(error.message);
+  }
 });
 
 document.querySelectorAll("[data-auth-tab]").forEach(button => {
@@ -628,6 +1061,7 @@ async function init() {
     console.error(error);
   }
   await loadProducts();
+  await loadAnnouncements();
   await restoreSession();
   await Promise.all([loadCart(), loadFavorites()]);
 }

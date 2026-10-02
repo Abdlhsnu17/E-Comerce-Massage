@@ -24,6 +24,7 @@ async function listProducts(req, res, next) {
 
     const [rows] = await pool.query(
       `SELECT p.id, p.name, p.slug, c.name AS category, p.description,
+              p.duration_minutes AS durationMinutes,
               p.price, p.old_price AS oldPrice, p.rating,
               p.review_count AS reviews, p.stock, p.badge, p.image
          FROM products p
@@ -43,6 +44,7 @@ async function getProduct(req, res, next) {
   try {
     const [rows] = await pool.query(
       `SELECT p.id, p.name, p.slug, c.name AS category, p.description,
+              p.duration_minutes AS durationMinutes,
               p.price, p.old_price AS oldPrice, p.rating,
               p.review_count AS reviews, p.stock, p.badge, p.image
          FROM products p

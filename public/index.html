@@ -3,457 +3,99 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="LokaMart — toko online untuk produk pilihan sehari-hari." />
-  <title>LokaMart — Belanja Pilihan, Hidup Lebih Nyaman</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/styles.css" />
+  <meta name="theme-color" content="#edf6f2" />
+  <meta name="description" content="Sentuhan Kecil menyediakan layanan pijat bayi dengan sentuhan lembut, nyaman, dan penuh perhatian. Konsultasi jadwal melalui WhatsApp." />
+  <title>Sentuhan Kecil — Pijat Bayi dengan Sentuhan Lembut</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/baby-massage.css" />
+  <link rel="stylesheet" href="css/store.css" />
 </head>
 <body>
-  <div class="announcement">
-    <div class="container announcement__inner">
-      <p>Gratis ongkir untuk pesanan pertama di atas Rp300.000</p>
-      <span>Gunakan kode <strong>LOKABARU</strong></span>
-    </div>
-  </div>
+  <div class="topline"><div class="wrap topline__inner"><span>Layanan pijat bayi dengan sentuhan lembut</span><a href="https://wa.me/6289634208909?text=Halo%20Sentuhan%20Kecil%2C%20saya%20ingin%20bertanya%20tentang%20layanan%20pijat%20bayi." target="_blank" rel="noopener">Konsultasi gratis <span aria-hidden="true">↗</span></a></div></div>
 
-  <header class="site-header" id="top">
-    <div class="container header__inner">
-      <a class="brand" href="#top" aria-label="LokaMart beranda">
-        <span class="brand__mark">L</span>
-        <span>LokaMart</span>
-      </a>
-
+  <header class="site-header">
+    <div class="wrap header__inner">
+      <a class="brand" href="#beranda" aria-label="Sentuhan Kecil, beranda"><span class="brand__symbol" aria-hidden="true">s</span><span>sentuhan kecil<small>baby massage care</small></span></a>
       <nav class="main-nav" aria-label="Navigasi utama">
-        <a href="#products">Katalog</a>
-        <a href="#benefits">Keunggulan</a>
-        <a href="#about">Tentang</a>
+        <a href="#layanan">Layanan</a>
+        <a href="#pilihan">Pilihan sesi</a>
+        <a class="cart-nav" href="#keranjang">Keranjang <b id="cart-count">0</b></a>
+        <a href="#tentang">Tentang kami</a>
+        <a href="#lokasi">Lokasi</a>
       </nav>
-
-      <div class="header__actions">
-        <button class="icon-btn search-toggle" type="button" aria-label="Buka pencarian">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.6-4.6m2.1-5.15a7.25 7.25 0 1 1-14.5 0 7.25 7.25 0 0 1 14.5 0Z"/></svg>
-        </button>
-        <button class="account-btn" id="accountButton" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm7.5 8.5a7.5 7.5 0 0 0-15 0"/></svg>
-          <span id="accountLabel">Masuk</span>
-        </button>
-        <button class="cart-btn" id="cartButton" type="button" aria-label="Buka keranjang">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2 11h10.8l2-8H6.1M9 20h.01M17 20h.01"/></svg>
-          <span>Keranjang</span>
-          <b id="cartCount">0</b>
-        </button>
-      </div>
-    </div>
-
-    <div class="search-panel" id="searchPanel" aria-hidden="true">
-      <div class="container search-panel__inner">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.6-4.6m2.1-5.15a7.25 7.25 0 1 1-14.5 0 7.25 7.25 0 0 1 14.5 0Z"/></svg>
-        <input id="globalSearch" type="search" placeholder="Cari produk, kategori, atau kebutuhan..." autocomplete="off" />
-        <button class="text-button" id="closeSearch" type="button">Tutup</button>
-      </div>
+      <a class="button button--nav" href="https://wa.me/6289634208909?text=Halo%20Sentuhan%20Kecil%2C%20saya%20ingin%20booking%20pijat%20bayi." target="_blank" rel="noopener"><span class="wa-icon" aria-hidden="true">✳</span> Booking via WhatsApp</a>
+      <div class="auth-actions"><button id="login-open" class="auth-link">Masuk</button><button id="register-open" class="auth-link auth-link--solid">Daftar</button><span id="user-menu" hidden></span></div>
     </div>
   </header>
 
   <main>
-    <section class="hero">
-      <div class="container hero__grid">
+    <section class="hero" id="beranda">
+      <div class="wrap hero__grid">
         <div class="hero__copy">
-          <span class="eyebrow">Pilihan terbaik untuk keseharian</span>
-          <h1>Belanja lebih mudah. Pilih yang benar-benar berarti.</h1>
-          <p>Koleksi produk pilihan dengan kualitas terkurasi, pembayaran aman, dan pengalaman belanja tanpa ribet.</p>
+          <span class="eyebrow"><i></i> Ruang nyaman untuk si kecil</span>
+          <h1>Sentuhan lembut, momen dekat <em>bersama bayi.</em></h1>
+          <p>Pijat bayi yang dilakukan dengan penuh perhatian, mengikuti kenyamanan dan respons si kecil. Nikmati waktu tenang untuk bayi dan orang tua.</p>
           <div class="hero__actions">
-            <a class="button button--primary" href="#products">Belanja sekarang</a>
-            <button class="button button--ghost" id="heroOrdersButton" type="button">Lihat pesanan</button>
+            <a class="button button--primary" href="#pilihan">Pilih layanan &amp; pesan <span aria-hidden="true">↓</span></a>
+            <a class="text-link" href="#layanan">Kenali layanan <span aria-hidden="true">↓</span></a>
           </div>
-          <div class="hero__meta">
-            <div><strong>4,9/5</strong><span>Ulasan pelanggan</span></div>
-            <div><strong>24 jam</strong><span>Proses pengiriman</span></div>
-            <div><strong>100%</strong><span>Pembayaran aman</span></div>
-          </div>
+          <div class="hero__note"><span class="note-mark" aria-hidden="true">♡</span><span>Setiap sesi mengikuti kebutuhan dan kenyamanan bayi.</span></div>
         </div>
-
-        <div class="hero__visual" aria-label="Produk unggulan LokaMart">
-          <div class="hero-card hero-card--main">
-            <span class="hero-card__badge">Produk favorit</span>
-            <img src="assets/img/headphones.svg" alt="Headphone Nimbus Pro" />
-            <div class="hero-card__caption">
-              <div><small>Audio</small><strong>Nimbus Pro</strong></div>
-              <span>Rp1.299.000</span>
-            </div>
-          </div>
-          <div class="floating-card floating-card--top">
-            <img src="assets/img/watch.svg" alt="Jam tangan pintar" />
-            <span>Baru</span>
-          </div>
-          <div class="floating-card floating-card--bottom">
-            <div class="avatar-stack"><i>DA</i><i>RK</i><i>MS</i></div>
-            <p><strong>12.500+</strong><br />pelanggan puas</p>
-          </div>
-          <span class="hero-shape hero-shape--one"></span>
-          <span class="hero-shape hero-shape--two"></span>
+        <div class="hero__visual">
+          <img src="https://images.unsplash.com/photo-1573570583489-366df88ffdfa?auto=format&fit=crop&w=1200&q=85" alt="Bayi berbaring nyaman saat orang tua menyentuh dengan lembut" fetchpriority="high" />
+          <div class="visual-stamp"><span>PELUKAN KECIL</span><strong>penuh<br />kehangatan</strong><i aria-hidden="true">♡</i></div>
+          <div class="visual-caption"><span class="caption-dot"></span><span>Ritme si kecil adalah yang utama</span></div>
         </div>
       </div>
+      <div class="hero__edge" aria-hidden="true"></div>
     </section>
 
-    <section class="benefit-strip" id="benefits">
-      <div class="container benefit-strip__grid">
-        <article>
-          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7zM7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span>
-          <div><strong>Pengiriman cepat</strong><span>Diproses maksimal 24 jam</span></div>
-        </article>
-        <article>
-          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="m12 3 8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4Zm-3 9 2 2 4-4"/></svg></span>
-          <div><strong>Pembayaran aman</strong><span>Transaksi terenkripsi</span></div>
-        </article>
-        <article>
-          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 7V5h10v2M8 11h8M8 15h5"/></svg></span>
-          <div><strong>Produk terkurasi</strong><span>Kualitas yang sudah diseleksi</span></div>
-        </article>
-        <article>
-          <span class="benefit-icon"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 2v6M16 2v6M2 9h20M8 13h3M13 13h3M8 16h3"/></svg></span>
-          <div><strong>Retur 14 hari</strong><span>Belanja tanpa rasa khawatir</span></div>
-        </article>
-      </div>
+    <section class="intro-band" aria-label="Tentang layanan">
+      <div class="wrap intro-band__inner"><span class="intro-number">01 / 03</span><p>Perawatan hangat yang berawal dari <strong>rasa aman, perhatian, dan sentuhan penuh kasih.</strong></p><span class="intro-flower" aria-hidden="true">✳</span></div>
     </section>
 
-    <section class="catalog section" id="products">
-      <div class="container">
+    <section class="services section" id="layanan">
+      <div class="wrap">
         <div class="section-heading">
-          <div>
-            <span class="eyebrow">Katalog pilihan</span>
-            <h2>Temukan favorit barumu</h2>
-          </div>
-          <p>Produk pilihan untuk bekerja, beraktivitas, dan menikmati waktu di rumah.</p>
+          <div><span class="eyebrow"><i></i> Layanan kami</span><h2 id="services-title">Waktu istimewa untuk<br /><em>si kecil dan keluarga.</em></h2></div>
+          <p id="services-intro">Setiap sesi dilakukan dengan tempo lembut dan komunikasi yang baik bersama orang tua.</p>
         </div>
-
-        <div class="catalog-toolbar">
-          <div class="category-filters" id="categoryFilters" aria-label="Filter kategori"></div>
-          <label class="sort-control">
-            <span>Urutkan</span>
-            <select id="sortSelect">
-              <option value="featured">Rekomendasi</option>
-              <option value="lowest">Harga terendah</option>
-              <option value="highest">Harga tertinggi</option>
-              <option value="rating">Rating terbaik</option>
-            </select>
-          </label>
+        <div class="service-list">
+          <article class="service-item"><span class="service-index">01</span><div class="service-icon service-icon--mint" aria-hidden="true">♡</div><div class="service-copy"><h3>Pijat bayi</h3><p>Sesi pijat lembut untuk membantu bayi merasa rileks dan menikmati sentuhan yang menenangkan.</p></div><a href="https://wa.me/6289634208909?text=Halo%2C%20saya%20ingin%20bertanya%20tentang%20layanan%20pijat%20bayi." target="_blank" rel="noopener" aria-label="Tanya tentang layanan pijat bayi">↗</a></article>
+          <article class="service-item"><span class="service-index">02</span><div class="service-icon service-icon--peach" aria-hidden="true">☼</div><div class="service-copy"><h3>Sesi bonding orang tua &amp; bayi</h3><p>Momen belajar sentuhan sederhana agar orang tua dan bayi dapat menikmati waktu dekat bersama.</p></div><a href="https://wa.me/6289634208909?text=Halo%2C%20saya%20ingin%20bertanya%20tentang%20sesi%20bonding%20orang%20tua%20dan%20bayi." target="_blank" rel="noopener" aria-label="Tanya tentang sesi bonding">↗</a></article>
+          <article class="service-item"><span class="service-index">03</span><div class="service-icon service-icon--yellow" aria-hidden="true">⌂</div><div class="service-copy"><h3>Kunjungan sesuai janji</h3><p>Tanyakan pilihan sesi dan ketersediaan kunjungan melalui WhatsApp sebelum membuat janji.</p></div><a href="https://wa.me/6289634208909?text=Halo%2C%20saya%20ingin%20bertanya%20tentang%20kunjungan%20pijat%20bayi." target="_blank" rel="noopener" aria-label="Tanya tentang kunjungan">↗</a></article>
         </div>
-
-        <p class="results-copy" id="resultsCopy"></p>
-        <div class="product-grid" id="productGrid"></div>
-        <div class="empty-state" id="emptyState" hidden>
-          <span>⌕</span>
-          <h3>Produk tidak ditemukan</h3>
-          <p>Coba kata pencarian atau kategori lain.</p>
-          <button class="button button--primary" id="resetFilter" type="button">Tampilkan semua</button>
-        </div>
+        <p class="service-disclaimer">Layanan ini merupakan perawatan relaksasi, bukan pengganti pemeriksaan atau saran tenaga kesehatan.</p>
       </div>
     </section>
 
-    <section class="promo section">
-      <div class="container promo__inner">
-        <div class="promo__copy">
-          <span class="eyebrow eyebrow--light">Penawaran anggota</span>
-          <h2>Lebih hemat setiap kali belanja.</h2>
-          <p>Daftar sebagai anggota LokaMart untuk mendapatkan voucher ulang tahun, akses produk terbaru, dan promo khusus.</p>
-          <button class="button button--light" id="joinButton" type="button">Daftar gratis</button>
-        </div>
-        <div class="promo__art">
-          <span class="promo-orbit promo-orbit--one"></span>
-          <span class="promo-orbit promo-orbit--two"></span>
-          <div class="member-card">
-            <div class="member-card__top"><span class="brand__mark">L</span><em>MEMBER</em></div>
-            <strong>LOKAMART CLUB</strong>
-            <span>Belanja • Poin • Hadiah</span>
-          </div>
-        </div>
+    <section class="care" id="tentang">
+      <div class="wrap care__grid">
+        <div class="care__image"><img id="about-image" src="https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85" alt="Tangan orang tua menggenggam lembut kaki bayi" loading="lazy" /><span class="image-label">DENGAN PENUH PERHATIAN</span></div>
+        <div class="care__copy"><span id="about-label" class="eyebrow eyebrow--light"><i></i> Tentang Sentuhan Kecil</span><h2 id="about-title">Ruang yang mengutamakan rasa nyaman.</h2><p id="about-text">Kami percaya pengalaman pijat bayi yang baik dimulai dengan mendengarkan orang tua dan memperhatikan respons bayi. Tidak ada sesi yang dipaksakan; kenyamanan si kecil selalu menjadi prioritas.</p><div class="care-points"><div><span>01</span><p>Ritme dan tekanan disesuaikan dengan respons bayi.</p></div><div><span>02</span><p>Orang tua dapat mendampingi sepanjang sesi.</p></div><div><span>03</span><p>Jadwal dan kebutuhan dibicarakan lebih dulu.</p></div></div><a class="button button--light" href="https://wa.me/6289634208909?text=Halo%20Sentuhan%20Kecil%2C%20saya%20ingin%20konsultasi%20tentang%20layanan." target="_blank" rel="noopener">Kenali kami lebih dekat <span aria-hidden="true">↗</span></a></div>
       </div>
     </section>
 
-    <section class="story section" id="about">
-      <div class="container story__grid">
-        <div class="story__visual">
-          <img src="assets/img/coffee.svg" alt="Mesin kopi pilihan LokaMart" />
-          <div class="story-note"><strong>Dikurasi, bukan sekadar dijual.</strong><span>Setiap produk dinilai dari fungsi, kualitas, dan desain.</span></div>
-        </div>
-        <div class="story__copy">
-          <span class="eyebrow">Tentang LokaMart</span>
-          <h2>Kami percaya belanja yang baik dimulai dari pilihan yang lebih sedikit, tetapi lebih tepat.</h2>
-          <p>LokaMart menghadirkan produk yang relevan untuk kehidupan modern. Kami mengutamakan kualitas, kejelasan informasi, dan layanan yang membantu Anda mengambil keputusan dengan percaya diri.</p>
-          <div class="story__stats">
-            <div><strong>8</strong><span>Kategori pilihan</span></div>
-            <div><strong>98%</strong><span>Pesanan tepat waktu</span></div>
-            <div><strong>4,9</strong><span>Rating rata-rata</span></div>
-          </div>
-        </div>
+    <section class="location section" id="lokasi">
+      <div class="wrap location__grid">
+        <div><span class="eyebrow"><i></i> Temukan kami</span><h2>Mulai dari obrolan,<br /><em>lalu tentukan lokasi.</em></h2><p>Hubungi kami untuk menanyakan alamat, jadwal yang tersedia, dan pilihan layanan. Buka tautan peta untuk melihat area layanan.</p><div class="location__actions"><a class="button button--primary" href="https://www.google.com/maps/search/?api=1&amp;query=Purwakarta%2C%20Kec.%20Purwakarta%2C%20Kabupaten%20Purwakarta%2C%20Jawa%20Barat" target="_blank" rel="noopener">Buka lokasi di Google Maps <span aria-hidden="true">↗</span></a><a class="text-link" href="https://wa.me/6289634208909?text=Halo%20Sentuhan%20Kecil%2C%20boleh%20minta%20alamat%20dan%20petunjuk%20lokasi%3F" target="_blank" rel="noopener">Minta petunjuk arah via WhatsApp</a></div></div>
+        <div class="location-note"><span class="location-note__pin" aria-hidden="true">⌖</span><span class="eyebrow">Lokasi layanan</span><h3>Temui kami sesuai janji</h3><p>Konfirmasi alamat dan ketersediaan sesi sebelum berkunjung.</p><a href="https://www.google.com/maps/search/?api=1&amp;query=Purwakarta%2C%20Kec.%20Purwakarta%2C%20Kabupaten%20Purwakarta%2C%20Jawa%20Barat" target="_blank" rel="noopener">Lihat area di peta <span aria-hidden="true">↗</span></a><span class="map-lines" aria-hidden="true"></span></div>
       </div>
     </section>
 
-    <section class="newsletter section">
-      <div class="container newsletter__inner">
-        <div>
-          <span class="eyebrow">Kabar baik di kotak masuk</span>
-          <h2>Dapatkan promo dan inspirasi pilihan.</h2>
-        </div>
-        <form id="newsletterForm" class="newsletter__form">
-          <label class="sr-only" for="newsletterEmail">Alamat email</label>
-          <input id="newsletterEmail" type="email" placeholder="nama@email.com" required />
-          <button class="button button--primary" type="submit">Berlangganan</button>
-        </form>
-      </div>
+    <section class="closing-cta"><div class="wrap closing-cta__inner"><span class="eyebrow eyebrow--light"><i></i> Kami siap menyapa</span><h2>Ingin tahu sesi yang<br /><em>cocok untuk si kecil?</em></h2><a class="button button--light" href="https://wa.me/6289634208909?text=Halo%20Sentuhan%20Kecil%2C%20saya%20ingin%20bertanya%20tentang%20pijat%20bayi." target="_blank" rel="noopener"><span class="wa-icon" aria-hidden="true">✳</span> Chat langsung di WhatsApp <span aria-hidden="true">↗</span></a><span class="closing-flower closing-flower--one" aria-hidden="true">✳</span><span class="closing-flower closing-flower--two" aria-hidden="true">✿</span></div></section>
+
+    <section class="store section" id="pilihan">
+      <div class="wrap"><div class="section-heading"><div><span class="eyebrow"><i></i> Pilihan sesi</span><h2>Pilih perawatan<br /><em>untuk keluarga.</em></h2></div><p>Pesan layanan pijat bayi dan spa dari katalog yang tersedia.</p></div><div id="products" class="store-grid"><p class="store-muted">Memuat pilihan layanan…</p></div></div>
     </section>
+    <section class="news section" id="berita"><div class="wrap"><div class="section-heading"><div><span class="eyebrow"><i></i> Kabar terbaru</span><h2>Berita &amp; <em>pengumuman.</em></h2></div></div><div id="announcements" class="news-grid"><p class="store-muted">Memuat berita…</p></div></div></section>
+    <section class="checkout section" id="keranjang"><div class="wrap"><div class="section-heading"><div><span class="eyebrow"><i></i> Keranjang</span><h2>Pesanan <em>Anda.</em></h2></div></div><div id="cart" class="cart-box"><p class="store-muted">Keranjang kosong.</p></div></div></section>
   </main>
+  <div id="auth-modal" class="auth-modal" hidden><div class="auth-dialog"><button id="auth-close" class="auth-close">×</button><h2 id="auth-title">Masuk</h2><form id="auth-form"><label id="auth-name-label" hidden>Nama<input name="name" id="auth-name" autocomplete="name" /></label><label>Email<input name="email" type="email" autocomplete="email" required /></label><label>Password<input name="password" type="password" minlength="6" autocomplete="current-password" required /></label><button class="button button--primary" type="submit">Lanjutkan</button><p id="auth-message" class="store-muted"></p></form></div></div>
 
-  <footer class="footer">
-    <div class="container footer__grid">
-      <div class="footer__brand">
-        <a class="brand brand--footer" href="#top"><span class="brand__mark">L</span><span>LokaMart</span></a>
-        <p>Produk pilihan untuk keseharian yang lebih nyaman.</p>
-      </div>
-      <div><strong>Belanja</strong><a href="#products">Semua produk</a><a href="#products">Produk baru</a><a href="#products">Terlaris</a></div>
-      <div><strong>Bantuan</strong><a href="#">Pengiriman</a><a href="#">Retur</a><a href="#">Hubungi kami</a></div>
-      <div><strong>Perusahaan</strong><a href="#about">Tentang kami</a><a href="#">Karier</a><a href="#">Kebijakan privasi</a></div>
-    </div>
-    <div class="container footer__bottom"><span>© 2026 LokaMart. Demo front-end.</span><span>Indonesia · IDR</span></div>
-  </footer>
-
-  <div class="overlay" id="overlay" hidden></div>
-
-  <aside class="drawer cart-drawer" id="cartDrawer" aria-hidden="true" aria-label="Keranjang belanja">
-    <div class="drawer__header">
-      <div><span>Keranjang belanja</span><small id="cartSubtitle">0 produk</small></div>
-      <button class="close-btn" data-close="cart" type="button" aria-label="Tutup keranjang">×</button>
-    </div>
-    <div class="cart-items" id="cartItems"></div>
-    <div class="cart-empty" id="cartEmpty">
-      <div class="cart-empty__icon">🛍️</div>
-      <h3>Keranjangmu masih kosong</h3>
-      <p>Tambahkan produk favorit untuk melanjutkan.</p>
-      <button class="button button--primary" data-close="cart" type="button">Mulai belanja</button>
-    </div>
-    <div class="cart-summary" id="cartSummary" hidden>
-      <div><span>Subtotal</span><strong id="cartSubtotal">Rp0</strong></div>
-      <p>Ongkir dan diskon dihitung saat checkout.</p>
-      <button class="button button--primary button--wide" id="checkoutButton" type="button">Lanjut checkout</button>
-      <button class="text-button text-button--center" data-close="cart" type="button">Lanjut belanja</button>
-    </div>
-  </aside>
-
-  <section class="modal auth-modal" id="authModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
-    <div class="auth-visual">
-      <span class="brand__mark brand__mark--large">L</span>
-      <h3>Belanja makin praktis dengan akun LokaMart.</h3>
-      <ul><li>Simpan riwayat pesanan</li><li>Checkout lebih cepat</li><li>Akses promo anggota</li></ul>
-    </div>
-    <div class="auth-content">
-      <div class="auth-tabs">
-        <button class="is-active" data-auth-tab="login" type="button">Masuk</button>
-        <button data-auth-tab="register" type="button">Daftar</button>
-      </div>
-      <form id="loginForm" class="auth-form">
-        <span class="eyebrow">Selamat datang kembali</span>
-        <h2 id="authTitle">Masuk ke akunmu</h2>
-        <label>Email<input id="loginEmail" type="email" placeholder="nama@email.com" required /></label>
-        <label>Kata sandi<input id="loginPassword" type="password" placeholder="Minimal 6 karakter" minlength="6" required /></label>
-        <button class="button button--primary button--wide" type="submit">Masuk</button>
-        <p class="form-hint">Demo admin: admin@lokamart.id / admin1234. Demo pelanggan: demo@lokamart.id / demo1234.</p>
-      </form>
-      <form id="registerForm" class="auth-form" hidden>
-        <span class="eyebrow">Buat akun baru</span>
-        <h2>Daftar gratis</h2>
-        <label>Nama lengkap<input id="registerName" type="text" placeholder="Nama lengkap" required /></label>
-        <label>Email<input id="registerEmail" type="email" placeholder="nama@email.com" required /></label>
-        <label>Kata sandi<input id="registerPassword" type="password" placeholder="Minimal 6 karakter" minlength="6" required /></label>
-        <button class="button button--primary button--wide" type="submit">Buat akun</button>
-      </form>
-    </div>
-  </section>
-
-  <section class="modal checkout-modal" id="checkoutModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
-    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
-    <div class="checkout-shell">
-      <div class="checkout-main">
-        <div class="checkout-heading">
-          <a class="brand" href="#"><span class="brand__mark">L</span><span>LokaMart</span></a>
-          <span>Checkout aman</span>
-        </div>
-        <div class="checkout-steps" id="checkoutSteps">
-          <span class="is-active"><b>1</b>Pengiriman</span><i></i><span><b>2</b>Pembayaran</span><i></i><span><b>3</b>Selesai</span>
-        </div>
-
-        <form id="shippingForm" class="checkout-form">
-          <div class="form-heading"><span class="eyebrow">Langkah 1</span><h2 id="checkoutTitle">Alamat pengiriman</h2></div>
-          <div class="form-grid">
-            <label class="form-grid__full">Nama penerima<input id="shippingName" type="text" required /></label>
-            <label>Email<input id="shippingEmail" type="email" required /></label>
-            <label>Nomor telepon<input id="shippingPhone" type="tel" placeholder="08xxxxxxxxxx" required /></label>
-            <label class="form-grid__full">Alamat lengkap<textarea id="shippingAddress" rows="3" placeholder="Nama jalan, nomor rumah, RT/RW" required></textarea></label>
-            <label>Kota<input id="shippingCity" type="text" required /></label>
-            <label>Kode pos<input id="shippingPostal" type="text" inputmode="numeric" required /></label>
-          </div>
-          <fieldset class="shipping-options">
-            <legend>Pilih pengiriman</legend>
-            <label><input type="radio" name="shipping" value="regular" checked /><span><strong>Reguler</strong><small>2–4 hari kerja</small></span><b>Rp20.000</b></label>
-            <label><input type="radio" name="shipping" value="express" /><span><strong>Express</strong><small>1–2 hari kerja</small></span><b>Rp35.000</b></label>
-          </fieldset>
-          <button class="button button--primary button--wide" type="submit">Lanjut ke pembayaran</button>
-        </form>
-
-        <form id="paymentForm" class="checkout-form" hidden>
-          <div class="form-heading"><span class="eyebrow">Langkah 2</span><h2>Pilih metode pembayaran</h2></div>
-          <div class="payment-options">
-            <label class="payment-option"><input type="radio" name="payment" value="QRIS" checked /><span class="payment-option__icon">QR</span><span><strong>QRIS</strong><small>Bayar melalui aplikasi bank atau e-wallet</small></span></label>
-            <label class="payment-option"><input type="radio" name="payment" value="Virtual Account" /><span class="payment-option__icon">VA</span><span><strong>Virtual Account</strong><small>BCA, BNI, BRI, Mandiri, dan lainnya</small></span></label>
-            <label class="payment-option"><input type="radio" name="payment" value="Kartu Debit/Kredit" /><span class="payment-option__icon">CC</span><span><strong>Kartu debit/kredit</strong><small>Visa dan Mastercard</small></span></label>
-          </div>
-          <div class="checkout-actions">
-            <button class="button button--ghost" id="backToShipping" type="button">Kembali</button>
-            <button class="button button--primary" type="submit">Bayar sekarang</button>
-          </div>
-        </form>
-
-        <div class="checkout-success" id="checkoutSuccess" hidden>
-          <div class="success-mark">✓</div>
-          <span class="eyebrow">Pembayaran berhasil</span>
-          <h2>Pesananmu sedang kami siapkan.</h2>
-          <p>Nomor pesanan <strong id="successOrderId"></strong>. Detail pesanan tersimpan di riwayat akunmu.</p>
-          <div class="success-actions"><button class="button button--primary" id="viewOrderButton" type="button">Lihat pesanan</button><button class="button button--ghost" data-close="modal" type="button">Kembali belanja</button></div>
-        </div>
-      </div>
-      <aside class="checkout-summary">
-        <span class="eyebrow">Ringkasan pesanan</span>
-        <div id="checkoutItems" class="checkout-items"></div>
-        <div class="checkout-totals">
-          <div><span>Subtotal</span><strong id="checkoutSubtotal">Rp0</strong></div>
-          <div><span>Pengiriman</span><strong id="checkoutShipping">Rp20.000</strong></div>
-          <div class="checkout-total"><span>Total</span><strong id="checkoutTotal">Rp0</strong></div>
-        </div>
-        <div class="secure-note"><svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z"/></svg><span>Transaksi dilindungi dengan sistem pembayaran aman.</span></div>
-      </aside>
-    </div>
-  </section>
-
-  <section class="modal orders-modal" id="ordersModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ordersTitle">
-    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
-    <div class="orders-header">
-      <span class="eyebrow">Akun saya</span>
-      <h2 id="ordersTitle">Riwayat pesanan</h2>
-      <p id="ordersGreeting"></p>
-      <button class="button button--primary" id="adminButton" type="button" hidden>Buka Dashboard Admin</button>
-    </div>
-    <div class="orders-list" id="ordersList"></div>
-    <div class="orders-empty" id="ordersEmpty">
-      <span>📦</span><h3>Belum ada pesanan</h3><p>Pesanan yang berhasil dibuat akan tampil di sini.</p><button class="button button--primary" data-close="modal" type="button">Mulai belanja</button>
-    </div>
-    <button class="text-button logout-button" id="logoutButton" type="button">Keluar dari akun</button>
-  </section>
-
-  <!-- Panel admin: hanya dirender untuk akun dengan users.role = 'admin'. -->
-  <section class="modal admin-modal" id="adminModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
-    <button class="close-btn modal__close" data-close="modal" type="button" aria-label="Tutup">×</button>
-    <div class="admin-header">
-      <div>
-        <span class="eyebrow">Panel pengelola</span>
-        <h2 id="adminTitle">Dashboard Admin</h2>
-        <p id="adminGreeting"></p>
-      </div>
-      <span class="role-pill role-pill--admin">ADMIN</span>
-    </div>
-
-    <div class="admin-tabs" role="tablist">
-      <button class="is-active" data-admin-tab="ringkasan" type="button">Ringkasan</button>
-      <button data-admin-tab="pesanan" type="button">Pesanan</button>
-      <button data-admin-tab="produk" type="button">Produk</button>
-      <button data-admin-tab="pengguna" type="button">Pengguna</button>
-    </div>
-
-    <div class="admin-panel" id="adminPanelRingkasan">
-      <div class="admin-stats" id="adminStats"></div>
-      <div class="admin-split">
-        <div class="admin-block">
-          <h3>Pesanan per status</h3>
-          <div class="admin-table-wrap"><table class="admin-table"><tbody id="adminStatusTable"></tbody></table></div>
-        </div>
-        <div class="admin-block">
-          <h3>Produk terlaris</h3>
-          <div class="admin-table-wrap"><table class="admin-table"><tbody id="adminTopTable"></tbody></table></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="admin-panel" id="adminPanelPesanan" hidden>
-      <div class="admin-toolbar">
-        <label>Status
-          <select id="adminOrderStatusFilter">
-            <option value="">Semua status</option>
-            <option value="Sedang diproses">Sedang diproses</option>
-            <option value="Dikirim">Dikirim</option>
-            <option value="Selesai">Selesai</option>
-            <option value="Dibatalkan">Dibatalkan</option>
-          </select>
-        </label>
-        <label class="admin-toolbar__grow">Cari
-          <input id="adminOrderSearch" type="search" placeholder="Kode pesanan, nama, atau email pembeli" />
-        </label>
-      </div>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead><tr><th>Pesanan</th><th>Pembeli</th><th>Item</th><th>Total</th><th>Status</th></tr></thead>
-          <tbody id="adminOrdersTable"></tbody>
-        </table>
-      </div>
-      <p class="admin-empty" id="adminOrdersEmpty" hidden>Belum ada pesanan yang cocok.</p>
-    </div>
-
-    <div class="admin-panel" id="adminPanelProduk" hidden>
-      <form class="admin-form" id="adminProductForm">
-        <h3>Tambah produk baru</h3>
-        <div class="admin-form__grid">
-          <label>Nama produk<input id="adminProductName" type="text" required /></label>
-          <label>Kategori<select id="adminProductCategory" required></select></label>
-          <label>Harga (Rp)<input id="adminProductPrice" type="number" min="0" step="1000" required /></label>
-          <label>Harga coret<input id="adminProductOldPrice" type="number" min="0" step="1000" placeholder="opsional" /></label>
-          <label>Stok<input id="adminProductStock" type="number" min="0" value="0" required /></label>
-          <label>Badge<input id="adminProductBadge" type="text" placeholder="mis. Baru" /></label>
-          <label class="admin-form__full">Gambar<input id="adminProductImage" type="text" placeholder="assets/img/bag.svg" /></label>
-          <label class="admin-form__full">Deskripsi<textarea id="adminProductDescription" rows="2"></textarea></label>
-        </div>
-        <button class="button button--primary" type="submit">Simpan produk</button>
-      </form>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead><tr><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th></th></tr></thead>
-          <tbody id="adminProductsTable"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="admin-panel" id="adminPanelPengguna" hidden>
-      <form class="admin-form" id="adminUserForm">
-        <h3>Buat akun baru</h3>
-        <div class="admin-form__grid">
-          <label>Nama<input id="adminUserName" type="text" required /></label>
-          <label>Email<input id="adminUserEmail" type="email" required /></label>
-          <label>Kata sandi<input id="adminUserPassword" type="password" minlength="6" required /></label>
-          <label>Peran<select id="adminUserRole"><option value="user">Pelanggan</option><option value="admin">Admin</option></select></label>
-        </div>
-        <button class="button button--primary" type="submit">Buat akun</button>
-      </form>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead><tr><th>Nama</th><th>Email</th><th>Pesanan</th><th>Total belanja</th><th>Peran</th></tr></thead>
-          <tbody id="adminUsersTable"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <script src="assets/js/api.js"></script>
-  <script src="assets/js/app.js"></script>
+  <footer class="footer"><div class="wrap footer__inner"><a class="brand brand--footer" href="#beranda"><span class="brand__symbol" aria-hidden="true">s</span><span>sentuhan kecil<small>baby massage care</small></span></a><p>Perawatan lembut, dengan kenyamanan si kecil sebagai prioritas.</p><a class="footer__contact" href="https://wa.me/6289634208909?text=Halo%20Sentuhan%20Kecil." target="_blank" rel="noopener">WhatsApp <span aria-hidden="true">↗</span></a><small class="footer__copyright">© 2026 Sentuhan Kecil</small></div></footer>
+  <script src="js/api.js"></script><script src="js/app.js"></script>
 </body>
 </html>

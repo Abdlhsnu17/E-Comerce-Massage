@@ -9,6 +9,8 @@ const bcrypt = require("bcryptjs");
 const { pool } = require("../config/db");
 
 const ORDER_STATUSES = ["Sedang diproses", "Dikirim", "Selesai", "Dibatalkan"];
+const PAYMENT_STATUSES = ["Menunggu pembayaran", "Dibayar", "Gagal", "Dibatalkan"];
+const APPOINTMENT_STATUSES = ["Menunggu konfirmasi", "Dikonfirmasi", "Selesai", "Dibatalkan"];
 
 /** "Nimbus Pro" → "nimbus-pro"; dipakai bila admin tidak mengisi slug sendiri. */
 function slugify(text) {
@@ -21,6 +23,7 @@ function slugify(text) {
 }
 
 function toNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -38,6 +41,7 @@ async function getStats(_req, res, next) {
          (SELECT COUNT(*) FROM products WHERE stock <= 10)               AS lowStock,
          (SELECT COUNT(*) FROM orders)                                   AS totalOrders,
          (SELECT COUNT(*) FROM orders WHERE status = 'Sedang diproses')  AS pendingOrders,
+         (SELECT COUNT(*) FROM orders WHERE payment_status = 'Menunggu pembayaran') AS pendingPayments,
          (SELECT COALESCE(SUM(total), 0) FROM orders
            WHERE status <> 'Dibatalkan')                                 AS revenue,
          (SELECT COUNT(*) FROM newsletter_subscribers)                   AS subscribers`
@@ -86,6 +90,9 @@ async function listAllOrders(req, res, next) {
       `SELECT o.id, o.order_code AS orderCode, o.status, o.subtotal,
               o.shipping_cost AS shippingCost, o.total,
               o.shipping_method AS shippingMethod, o.payment_method AS paymentMethod,
+              o.payment_status AS paymentStatus, o.appointment_date AS appointmentDate,
+              TIME_FORMAT(o.appointment_time, '%H:%i') AS appointmentTime,
+              o.service_location AS serviceLocation, o.appointment_status AS appointmentStatus,
               o.recipient_name AS recipientName, o.recipient_email AS recipientEmail,
               o.recipient_phone AS recipientPhone, o.shipping_address AS address,
               o.shipping_city AS city, o.created_at AS createdAt,
@@ -131,12 +138,40 @@ async function updateOrderStatus(req, res, next) {
   }
 }
 
+async function updatePaymentStatus(req, res, next) {
+  try {
+    const { status } = req.body;
+    if (!PAYMENT_STATUSES.includes(status)) {
+      return res.status(400).json({ message: "Status pembayaran tidak dikenali." });
+    }
+    const [result] = await pool.query("UPDATE orders SET payment_status = ? WHERE id = ?", [status, req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    res.json({ id: Number(req.params.id), paymentStatus: status });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateAppointmentStatus(req, res, next) {
+  try {
+    const { status } = req.body;
+    if (!APPOINTMENT_STATUSES.includes(status)) {
+      return res.status(400).json({ message: "Status jadwal tidak dikenali." });
+    }
+    const [result] = await pool.query("UPDATE orders SET appointment_status = ? WHERE id = ?", [status, req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    res.json({ id: Number(req.params.id), appointmentStatus: status });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // ------------------------------------------------------------------ produk
 
 async function listAllProducts(_req, res, next) {
   try {
     const [rows] = await pool.query(
-      `SELECT p.id, p.name, p.slug, p.description, p.category_id AS categoryId,
+      `SELECT p.id, p.name, p.slug, p.description, p.duration_minutes AS durationMinutes, p.category_id AS categoryId,
               c.name AS category, p.price, p.old_price AS oldPrice, p.rating,
               p.review_count AS reviews, p.stock, p.badge, p.image,
               p.is_active AS isActive, p.created_at AS createdAt
@@ -156,9 +191,10 @@ async function createProduct(req, res, next) {
     const categoryId = toNumber(req.body.categoryId);
     const price = toNumber(req.body.price);
     const stock = toNumber(req.body.stock) ?? 0;
+    const durationMinutes = toNumber(req.body.durationMinutes);
 
-    if (!name || !categoryId || price === null || price < 0) {
-      return res.status(400).json({ message: "Nama, kategori, dan harga produk wajib diisi." });
+    if (!name || !categoryId || price === null || price < 0 || durationMinutes === null || durationMinutes < 1) {
+      return res.status(400).json({ message: "Nama, kategori, durasi, dan harga layanan wajib diisi." });
     }
 
     const [category] = await pool.query("SELECT id FROM categories WHERE id = ?", [categoryId]);
@@ -170,10 +206,10 @@ async function createProduct(req, res, next) {
 
     const [result] = await pool.query(
       `INSERT INTO products
-         (category_id, name, slug, description, price, old_price, stock, badge, image, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (category_id, name, slug, description, duration_minutes, price, old_price, stock, badge, image, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        categoryId, name, slug, req.body.description || null, price,
+        categoryId, name, slug, req.body.description || null, durationMinutes, price,
         toNumber(req.body.oldPrice), Math.max(0, stock),
         (req.body.badge || "").trim() || null,
         (req.body.image || "").trim() || "assets/img/bag.svg",
@@ -195,6 +231,11 @@ async function updateProduct(req, res, next) {
 
     if (req.body.name !== undefined) set("name", String(req.body.name).trim());
     if (req.body.description !== undefined) set("description", req.body.description || null);
+    if (req.body.durationMinutes !== undefined) {
+      const durationMinutes = toNumber(req.body.durationMinutes);
+      if (durationMinutes === null || durationMinutes < 1) return res.status(400).json({ message: "Durasi layanan minimal 1 menit." });
+      set("duration_minutes", durationMinutes);
+    }
     if (req.body.categoryId !== undefined) set("category_id", toNumber(req.body.categoryId));
     if (req.body.price !== undefined) set("price", toNumber(req.body.price));
     if (req.body.oldPrice !== undefined) set("old_price", toNumber(req.body.oldPrice));
@@ -313,6 +354,8 @@ module.exports = {
   getStats,
   listAllOrders,
   updateOrderStatus,
+  updatePaymentStatus,
+  updateAppointmentStatus,
   listAllProducts,
   createProduct,
   updateProduct,

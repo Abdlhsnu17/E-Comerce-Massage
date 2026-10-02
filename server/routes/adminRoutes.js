@@ -1,0 +1,31 @@
+const express = require("express");
+const { uploadImage } = require("../controllers/uploadController");
+const announcements = require("../controllers/announcementController");
+const { receiveImage } = require("../middleware/imageUpload");
+const admin = require("../controllers/adminController");
+const { requireAdmin } = require("../middleware/auth");
+const { getContent, updateContent } = require("../controllers/siteContentController");
+
+const router = express.Router();
+router.use(requireAdmin);
+router.get("/site-content", getContent);
+router.patch("/site-content", updateContent);
+router.get("/stats", admin.getStats);
+router.get("/orders", admin.listAllOrders);
+router.patch("/orders/:id/status", admin.updateOrderStatus);
+router.patch("/orders/:id/payment-status", admin.updatePaymentStatus);
+router.patch("/orders/:id/appointment-status", admin.updateAppointmentStatus);
+router.post("/uploads/images", receiveImage, uploadImage);
+router.get("/announcements", announcements.listAll);
+router.post("/announcements", announcements.create);
+router.patch("/announcements/:id", announcements.update);
+router.delete("/announcements/:id", announcements.remove);
+router.get("/products", admin.listAllProducts);
+router.post("/products", admin.createProduct);
+router.patch("/products/:id", admin.updateProduct);
+router.delete("/products/:id", admin.deactivateProduct);
+router.get("/users", admin.listUsers);
+router.post("/users", admin.createUser);
+router.patch("/users/:id/role", admin.updateUserRole);
+
+module.exports = router;
