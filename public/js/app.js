@@ -2,6 +2,81 @@ const rupiah = value => new Intl.NumberFormat("id-ID", { style: "currency", curr
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
 let currentUser = null;
 const whatsappNumber = "6289634208909";
+const scheduleSelection = { date: "", time: "" };
+
+function setupCurrentDateTime() {
+  const dateElement = document.querySelector("#current-date");
+  const timeElement = document.querySelector("#current-time");
+  if (!dateElement || !timeElement) return;
+
+  const timeZone = "Asia/Jakarta";
+  const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+    timeZone, weekday: "long", day: "numeric", month: "long", year: "numeric"
+  });
+  const timeFormatter = new Intl.DateTimeFormat("id-ID", {
+    timeZone, hour: "2-digit", minute: "2-digit", hour12: false
+  });
+  const machineDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit"
+  });
+  const render = () => {
+    const now = new Date();
+    dateElement.textContent = dateFormatter.format(now);
+    dateElement.dateTime = machineDateFormatter.format(now);
+    timeElement.textContent = `${timeFormatter.format(now)} WIB`;
+  };
+
+  render();
+  window.setInterval(render, 30_000);
+}
+
+function getScheduleTimes(dateValue) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return Array.from({ length: 9 }, (_, index) => index + 9).filter(hour => {
+    const slot = new Date(date);
+    slot.setHours(hour, 0, 0, 0);
+    return slot > new Date();
+  }).map(hour => `${String(hour).padStart(2, "0")}:00`);
+}
+
+function getScheduleDateOptions() {
+  const formatter = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long" });
+  return Array.from({ length: 14 }, (_, offset) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + offset);
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return { value, label: formatter.format(date) };
+  }).filter(option => getScheduleTimes(option.value).length > 0);
+}
+
+function setupSchedulePicker() {
+  const dateSelect = document.querySelector("#schedule-date");
+  const timesContainer = document.querySelector("#schedule-times");
+  const summary = document.querySelector("#schedule-summary");
+  if (!dateSelect || !timesContainer || !summary) return;
+
+  const dateOptions = getScheduleDateOptions();
+  dateSelect.innerHTML = dateOptions.map(option => `<option value="${option.value}">${esc(option.label)}</option>`).join("");
+  dateSelect.value = dateOptions.some(option => option.value === scheduleSelection.date) ? scheduleSelection.date : dateOptions[0].value;
+
+  const renderTimes = () => {
+    const times = getScheduleTimes(dateSelect.value);
+    scheduleSelection.date = dateSelect.value;
+    scheduleSelection.time = times.includes(scheduleSelection.time) ? scheduleSelection.time : times[0];
+    timesContainer.innerHTML = times.map(time => `<button class="schedule-time${time === scheduleSelection.time ? " is-selected" : ""}" type="button" data-schedule-time="${time}" aria-pressed="${time === scheduleSelection.time}">${time.replace(":", ".")}</button>`).join("");
+    timesContainer.querySelectorAll("[data-schedule-time]").forEach(button => button.addEventListener("click", () => {
+      scheduleSelection.time = button.dataset.scheduleTime;
+      renderTimes();
+    }));
+    const selectedDate = dateOptions.find(option => option.value === scheduleSelection.date);
+    summary.textContent = `Pilihan Anda: ${selectedDate?.label || ""} pukul ${scheduleSelection.time.replace(":", ".")}`;
+  };
+
+  dateSelect.addEventListener("change", renderTimes);
+  renderTimes();
+}
 
 async function loadSiteContent() {
   const content = await api.siteContent();
@@ -88,12 +163,26 @@ async function renderCart() {
       locationSelect.innerHTML = '<option value="studio">Datang ke studio</option><option value="home">Kunjungan ke rumah</option>';
       const bookingFields = document.createElement("div");
       bookingFields.className = "booking-fields";
-      bookingFields.innerHTML = '<label>Tanggal sesi<input name="appointmentDate" type="date" required /></label><label>Waktu sesi<input name="appointmentTime" type="time" required /></label>';
+      bookingFields.innerHTML = '<label>Hari dan tanggal sesi<select name="appointmentDate" required></select></label><label>Jam sesi<select name="appointmentTime" required></select></label><p class="booking-hours">Pilihan jadwal otomatis tersedia pukul 09.00–17.00.</p>';
       form.querySelector("h3").after(bookingFields);
-      const dateInput = bookingFields.querySelector('[name="appointmentDate"]');
-      const localToday = new Date();
-      localToday.setMinutes(localToday.getMinutes() - localToday.getTimezoneOffset());
-      dateInput.min = localToday.toISOString().slice(0, 10);
+      const dateSelect = bookingFields.querySelector('[name="appointmentDate"]');
+      const timeSelect = bookingFields.querySelector('[name="appointmentTime"]');
+      const dateOptions = getScheduleDateOptions();
+      dateSelect.innerHTML = dateOptions.map(option => `<option value="${option.value}">${esc(option.label)}</option>`).join("");
+      dateSelect.value = dateOptions.some(option => option.value === scheduleSelection.date) ? scheduleSelection.date : dateOptions[0].value;
+      const renderTimeOptions = () => {
+        const slots = getScheduleTimes(dateSelect.value);
+        timeSelect.innerHTML = slots.length
+          ? slots.map(time => `<option value="${time}">${time.replace(":", ".")}</option>`).join("")
+          : '<option value="">Tidak ada jadwal</option>';
+        timeSelect.value = slots.includes(scheduleSelection.time) ? scheduleSelection.time : slots[0];
+        scheduleSelection.date = dateSelect.value;
+        scheduleSelection.time = timeSelect.value;
+        timeSelect.disabled = slots.length === 0;
+      };
+      dateSelect.addEventListener("change", renderTimeOptions);
+      timeSelect.addEventListener("change", () => { scheduleSelection.time = timeSelect.value; });
+      renderTimeOptions();
       form.onsubmit = async event => {
       event.preventDefault();
       const message = document.querySelector("#checkout-message");
@@ -139,4 +228,4 @@ function setupAuth() {
   const query = new URLSearchParams(location.search); if (query.has("reset")) openReset(); else if (query.has("login")) open("login");
 }
 function showUser(user){currentUser=user;const menu=document.querySelector("#user-menu");document.querySelector("#login-open").hidden=true;document.querySelector("#register-open").hidden=true;menu.hidden=false;menu.innerHTML=`Halo, ${esc(user.name)} ${user.role==="admin"?'<a class="auth-link dashboard-link" href="/dashboard.html">Dashboard</a>':""} <button id="logout-btn" class="auth-link">Keluar</button>`;document.querySelector("#logout-btn").onclick=async()=>{await api.logout();currentUser=null;location.reload();};renderCart();}
-document.addEventListener("DOMContentLoaded", () => { loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); });
+document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); });

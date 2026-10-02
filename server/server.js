@@ -6,6 +6,7 @@ const { pool, testConnection } = require("./config/db");
 const { ensureMassageCatalog } = require("./services/massageCatalogBootstrap");
 
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "127.0.0.1";
 validateEnvironment();
 const app = createApp();
 
@@ -21,8 +22,8 @@ async function start() {
     process.exit(1);
   }
 
-  const server = app.listen(PORT, "127.0.0.1", () =>
-    console.log(`✔ Aera Baby Spa mendengarkan di 127.0.0.1:${PORT}`)
+  const server = app.listen(PORT, HOST, () =>
+    console.log(`✔ Aera Baby Spa mendengarkan di ${HOST}:${PORT}`)
   );
 
   server.on("error", error => {

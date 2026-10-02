@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+docker/.env
+node_modules
+npm-debug.log*
+public/uploads
+coverage
+deploy
+test
+README.md
+PRD.md

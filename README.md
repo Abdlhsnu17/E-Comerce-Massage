@@ -118,6 +118,18 @@ Gunakan Node.js 20+, MySQL/MariaDB, dan Nginx. Aplikasi hanya mendengarkan di `1
 
 Jangan membuka port 3000 dari internet. Buka hanya 80/443 pada firewall dan gunakan sertifikat TLS yang aktif sebelum mengarahkan domain produksi.
 
+## Deploy dengan Docker Compose
+
+Alternatif deployment yang dapat direproduksi tersedia melalui Docker Compose. Compose menjalankan aplikasi Node.js dan MariaDB, sementara Nginx pada host tetap menangani HTTPS dan meneruskan trafik ke `127.0.0.1:3000`.
+
+1. Instal Docker Engine dan Docker Compose plugin di VPS.
+2. Masuk ke folder `docker/`, lalu salin `.env.example` menjadi `.env`; isi seluruh secret, domain HTTPS, dan SMTP. Jangan gunakan password contoh atau commit file `.env`.
+3. Pastikan konfigurasi Nginx pada [deploy/nginx-aera-baby-spa.conf](deploy/nginx-aera-baby-spa.conf) sudah memakai domain dan sertifikat Anda.
+4. Dari folder `docker/`, jalankan `docker compose up -d --build`.
+5. Cek dengan `docker compose ps`, `docker compose logs -f app`, dan `curl https://domain-anda/health`.
+
+Database dan gambar upload disimpan pada Docker volume `mariadb_data` dan `app_uploads`. Keduanya harus masuk prosedur backup. Jangan menjalankan `docker compose down -v` di production karena perintah tersebut menghapus volume database dan upload.
+
 > Penting: jangan membuka file HTML langsung dari browser melalui Live Server atau double-click pada file `public/index.html`. Aplikasi membutuhkan server Express dan API di `/api` agar data dan sesi bisa berjalan dengan benar.
 
 ## Membuat admin pertama

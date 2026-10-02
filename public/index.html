@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="css/store.css" />
 </head>
 <body>
-  <div class="topline"><div class="wrap topline__inner"><span>Layanan pijat bayi dengan sentuhan lembut</span><a href="https://wa.me/6289634208909?text=Halo%20Aera%20Baby%20Spa%2C%20saya%20ingin%20bertanya%20tentang%20layanan%20pijat%20bayi." target="_blank" rel="noopener">Konsultasi gratis <span aria-hidden="true">↗</span></a></div></div>
+  <div class="topline"><div class="wrap topline__inner"><span>Layanan pijat bayi dengan sentuhan lembut</span><div class="topline__meta"><time id="current-date" datetime="">Memuat tanggal…</time><span id="current-time" aria-live="off"></span><a href="https://wa.me/6289634208909?text=Halo%20Aera%20Baby%20Spa%2C%20saya%20ingin%20bertanya%20tentang%20layanan%20pijat%20bayi." target="_blank" rel="noopener">Konsultasi gratis <span aria-hidden="true">↗</span></a></div></div></div>
 
   <header class="site-header">
     <div class="wrap header__inner">
@@ -50,6 +50,13 @@
         </div>
       </div>
       <div class="hero__edge" aria-hidden="true"></div>
+    </section>
+
+    <section class="schedule-picker" id="jadwal" aria-labelledby="schedule-title">
+      <div class="wrap schedule-picker__layout">
+        <div class="schedule-picker__intro"><span class="eyebrow"><i></i> Jadwal sesi</span><h2 id="schedule-title">Pilih hari &amp; jam.</h2><p>Pilih waktu yang nyaman untuk si kecil. Jadwal ini akan digunakan saat checkout.</p></div>
+        <div class="schedule-picker__controls"><label for="schedule-date">Hari dan tanggal</label><select id="schedule-date" required></select><span class="schedule-picker__label">Jam tersedia</span><div id="schedule-times" class="schedule-picker__times" role="group" aria-label="Pilih jam sesi"></div><p id="schedule-summary" class="schedule-picker__summary" aria-live="polite"></p></div>
+      </div>
     </section>
 
     <!-- Let visitors choose and book before reading the supporting information. -->
