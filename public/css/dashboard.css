@@ -29,6 +29,17 @@
 .service-add-button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 4px; background: #e9765d; color: white; font: 700 11px var(--body); cursor: pointer; }
 .service-add-button:hover { background: #cc5d47; }
 .service-add-button:disabled { opacity: .6; cursor: wait; }
+.icon-button { display: inline-grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 1px solid #d9e5de; border-radius: 5px; background: #fff; color: #3d7365; cursor: pointer; }
+.icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.icon-button:hover { background: #d8eee5; }
+.icon-button:focus-visible { outline: 3px solid rgba(233,118,93,.42); outline-offset: 2px; }
+.icon-button:disabled { cursor: wait; opacity: .6; }
+.icon-button--primary { border-color: #e9765d; background: #e9765d; color: #fff; }
+.icon-button--primary:hover { background: #cc5d47; }
+.icon-button--danger { color: #b65346; }
+.icon-button--danger:hover { background: #fff0ed; }
+.table-actions { white-space: nowrap; }
+.table-actions .icon-button + .icon-button { margin-left: 6px; }
 .service-editor { margin-bottom: 14px; padding: 20px; border: 1px solid #d9e5de; background: #fff; }
 .service-editor[hidden] { display: none; }
 .service-form-heading,.service-form-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; }

@@ -37,6 +37,15 @@ const serviceEditor = document.querySelector("#service-editor");
 let dashboardProducts = [];
 let servicePreviewUrl = null;
 const serviceImagePreview = document.querySelector("#service-image-preview");
+const dashboardIcons = {
+  add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.8 7.2 3 3"/></svg>',
+  delete: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v5M14 11v5M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg>'
+};
+
+function dashboardIconButton(icon, label, dataAttribute, id, destructive = false) {
+  return `<button class="icon-button${destructive ? " icon-button--danger" : ""}" ${dataAttribute}="${Number(id)}" type="button" aria-label="${label}" title="${label}">${dashboardIcons[icon]}</button>`;
+}
 
 function setServiceImagePreview(source, temporary = false) {
   if (servicePreviewUrl) URL.revokeObjectURL(servicePreviewUrl);
@@ -75,7 +84,7 @@ function renderServices(products) {
   dashboardProducts = products;
   document.querySelector("#service-count").textContent = `${products.length} layanan`;
   document.querySelector("#services-empty").hidden = products.length > 0;
-  document.querySelector("#services-table").innerHTML = products.slice(0, 50).map(product => `<tr><td>${dashboardEsc(product.name)}</td><td>${dashboardEsc(product.category)}</td><td>${Number(product.durationMinutes) || 0} menit</td><td>${dashboardMoney(product.price)}</td><td>${product.isActive ? "Aktif" : "Nonaktif"}</td><td><button class="edit-product" data-edit-service="${Number(product.id)}" type="button">Edit</button> <button class="delete-product" data-delete-service="${Number(product.id)}" type="button">Hapus</button></td></tr>`).join("");
+  document.querySelector("#services-table").innerHTML = products.slice(0, 50).map(product => `<tr><td>${dashboardEsc(product.name)}</td><td>${dashboardEsc(product.category)}</td><td>${Number(product.durationMinutes) || 0} menit</td><td>${dashboardMoney(product.price)}</td><td>${product.isActive ? "Aktif" : "Nonaktif"}</td><td class="table-actions">${dashboardIconButton("edit", `Edit layanan ${dashboardEsc(product.name)}`, "data-edit-service", product.id)}${dashboardIconButton("delete", `Hapus layanan ${dashboardEsc(product.name)}`, "data-delete-service", product.id, true)}</td></tr>`).join("");
 }
 
 function renderServiceCategories(categories) {
@@ -120,7 +129,7 @@ async function refreshDashboard() {
     dashboardMessage.textContent = error.message;
   }
 }
-async function renderAdminAnnouncements(){const rows=await api.admin.announcements();document.querySelector("#announcements-admin-list").innerHTML=rows.length?`<table><thead><tr><th>Judul</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map(n=>`<tr><td>${dashboardEsc(n.title)}</td><td>${n.kind}</td><td>${n.isPublished?"Terbit":"Draft"}</td><td><button data-ann-edit="${n.id}">Edit</button> <button data-ann-delete="${n.id}">Hapus</button></td></tr>`).join("")}</tbody></table>`:"Belum ada berita atau pengumuman.";}
+async function renderAdminAnnouncements(){const rows=await api.admin.announcements();document.querySelector("#announcements-admin-list").innerHTML=rows.length?`<table><thead><tr><th>Judul</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map(n=>`<tr><td>${dashboardEsc(n.title)}</td><td>${n.kind}</td><td>${n.isPublished?"Terbit":"Draft"}</td><td class="table-actions">${dashboardIconButton("edit", `Edit ${dashboardEsc(n.title)}`, "data-ann-edit", n.id)}${dashboardIconButton("delete", `Hapus ${dashboardEsc(n.title)}`, "data-ann-delete", n.id, true)}</td></tr>`).join("")}</tbody></table>`:"Belum ada berita atau pengumuman.";}
 const announcementForm=document.querySelector("#announcement-form");
 const announcementImageInput=document.createElement("input");
 const announcementImageUrl=document.createElement("input");
