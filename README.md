@@ -1,167 +1,201 @@
-# Sentuhan Kecil — Website Layanan Pijat Bayi
+# Sentuhan Kecil
 
-Website layanan pijat bayi dengan frontend responsif, REST API Node.js/Express, dan database MySQL/MariaDB.
+Sentuhan Kecil adalah platform booking dan penjualan layanan pijat bayi serta spa keluarga berbasis web. Aplikasi ini dibangun dengan Node.js, Express, dan MySQL, dengan arsitektur API dan frontend statis yang memudahkan pengelolaan katalog, keranjang belanja, checkout, dan panel admin.
 
-## Cakupan fitur
+## Ringkasan proyek
 
-- **Beranda & Katalog**: hero, kategori, pencarian, pengurutan, kartu produk, produk favorit — seluruh data diambil dari database.
-- **Keranjang Belanja**: tambah produk, ubah jumlah, hapus produk, hitung subtotal.
-- **Pemesanan & Checkout**: alamat penerima, pilihan pengiriman, ringkasan pesanan. Harga dan ongkir dihitung ulang di server.
-- **Pembayaran**: simulasi QRIS, Virtual Account, dan kartu debit/kredit.
-- **Autentikasi**: daftar & masuk dengan password ter-hash (bcrypt) dan sesi JWT.
-- **Riwayat Pesanan**: pesanan tersimpan permanen di tabel `orders` dan `order_items`.
+Proyek ini dirancang untuk bisnis layanan pijat bayi yang ingin menawarkan:
+
+- katalog layanan dengan deskripsi, durasi, harga, dan stok;
+- fitur keranjang belanja berbasis sesi untuk pengunjung dan akun terdaftar;
+- proses checkout dan pemesanan dengan detail jadwal, lokasi, serta metode pembayaran;
+- dashboard admin untuk mengelola layanan, pengumuman, dan status pesanan;
+- autentikasi pengguna dan pengelola dengan sesi serta password terenkripsi.
+
+## Fitur utama
+
+- Beranda dan katalog layanan pijat bayi
+- Search, kategori, dan detail produk/layanan
+- Keranjang belanja dan wishlist
+- Checkout dengan data penerima dan metode pembayaran
+- Manajemen tanggal, waktu, dan lokasi sesi layanan
+- Autentikasi pengguna (register/login/logout)
+- Dashboard admin untuk mengelola konten dan order
+- Pengumuman dan newsletter
+- Upload gambar produk/layanan oleh admin
+
+## Stack teknologi
+
+- Node.js
+- Express.js
+- MySQL / MariaDB
+- mysql2
+- bcryptjs
+- JWT
+- cookie-parser
+- multer
 
 ## Prasyarat
 
-- Node.js 18 atau lebih baru
-- MySQL / MariaDB berjalan di `localhost:3306` (mis. XAMPP, Laragon, atau Homebrew MySQL)
+- Node.js 18+
+- MySQL / MariaDB yang berjalan di localhost:3306
+- Access ke database dengan user yang memiliki hak membuat database dan tabel
 
-## Menjalankan
+## Persiapan lingkungan
 
-```bash
-npm install          # pasang dependensi
-cp .env.example .env # sesuaikan kredensial database bila perlu
-npm start            # jalankan server
-```
-
-Sebelum menjalankan server, impor `database/schema.sql` untuk membuat database
-beserta seluruh tabel dan view-nya.
-
-Setelah itu, jalankan `database/migrations/001_baby_massage_catalog.sql` pada
-`sentuhan_kecil_db` untuk menambahkan kategori serta draft layanan pijat bayi.
-Migration ini menonaktifkan katalog demo lama tanpa menghapus datanya.
-
-Untuk database yang sudah berjalan, jalankan migration berikut secara berurutan
-agar konten situs, jadwal booking, durasi layanan, dan pilihan spa/massage tersedia:
+Salin file contoh konfigurasi ke file `.env`:
 
 ```bash
-mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/002_site_content.sql
-mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/003_appointments_and_payments.sql
-mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/004_massage_services.sql
-mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/005_seed_spa_massage_services.sql
+cp .env.example .env
 ```
 
-Migration `005` aman dijalankan ulang; data dummy akan diperbarui berdasarkan slug layanan.
+Lalu sesuaikan nilai berikut sesuai environment lokal Anda:
 
-Untuk database lama, jalankan `database/migrations/003_appointments_and_payments.sql`
-satu kali agar pesanan menyimpan tanggal/jam sesi serta status pembayaran.
-Instalasi baru sudah mendapat kolom tersebut melalui `schema.sql`.
+```env
+PORT=3000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=sentuhan_kecil_db
+JWT_SECRET=isi_dengan_string_acak_minimal_32_karakter
+JWT_EXPIRES_IN=7d
+BOOTSTRAP_ADMIN_EMAIL=admin@email.com
+BOOTSTRAP_ADMIN_NAME=Administrator Sentuhan Kecil
+BOOTSTRAP_ADMIN_PASSWORD=PasswordMinimal12Karakter
+```
 
-Untuk membuat admin pertama, isi `BOOTSTRAP_ADMIN_EMAIL` dan
-`BOOTSTRAP_ADMIN_PASSWORD` (minimal 12 karakter) di `.env`, lalu jalankan
-`npm run admin:create`. Bootstrap tidak akan mengubah akun yang sudah ada.
-Admin dapat mengganti password setelah masuk melalui menu **Akun & keamanan**.
+## Menjalankan aplikasi
 
-Lalu buka **`http://localhost:3000`**.
+1. Install dependency:
 
-> ⚠️ **Jangan buka lewat Live Server VS Code** (`127.0.0.1:5500/public/index.html`)
-> atau klik ganda `index.html`. Keduanya hanya menyajikan file statis tanpa `/api`,
-> sehingga tidak ada data yang masuk ke MySQL. Halaman akan menampilkan banner
-> merah bila dibuka dari alamat yang keliru.
+```bash
+npm install
+```
 
-### Menyiapkan database secara manual
-
-Bila lebih suka lewat phpMyAdmin atau klien MySQL, impor skema berikut:
+2. Impor skema database:
 
 ```bash
 mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 ```
 
-`schema.sql` adalah sumber skema database yang lengkap dan menjadi acuan saat
-database dibuat ulang. Jika ada perubahan struktur database, buat berkas
-migrasi baru di `database/`, jalankan migrasi tersebut pada database yang sudah
-berjalan, lalu terapkan perubahan yang sama ke `schema.sql` agar keduanya tetap
-sinkron. Data awal/demo tidak dikelola sebagai berkas terpisah.
+3. Jalankan server:
 
-## Struktur database (`sentuhan_kecil_db`)
-
-| Tabel | Isi |
-| --- | --- |
-| `categories` | Kategori produk (Elektronik, Fashion, Rumah) |
-| `products` | Produk katalog: harga, harga coret, rating, stok, badge, gambar |
-| `users` | Akun pelanggan beserta hash password |
-| `carts` | Satu keranjang per akun, atau per pengunjung tamu (`session_token`) |
-| `cart_items` | Isi keranjang: produk dan jumlahnya |
-| `favorites` | Wishlist milik akun atau sesi tamu |
-| `orders` | Header pesanan: kode, status, subtotal, ongkir, total, alamat |
-| `order_items` | Rincian item pesanan; `line_total` kolom terhitung otomatis |
-| `newsletter_subscribers` | Email pendaftar newsletter |
-| `announcements` | Berita/pengumuman admin, draft atau diterbitkan |
-| `v_catalog` | View katalog siap tampil untuk homepage |
-
-## Endpoint API
-
-| Method | Endpoint | Keterangan |
-| --- | --- | --- |
-| GET | `/api/products?category=&q=&sort=` | Daftar produk (sort: `featured`, `lowest`, `highest`, `rating`) |
-| GET | `/api/products/:id` | Detail satu produk |
-| GET | `/api/categories` | Kategori beserta jumlah produk |
-| GET | `/api/announcements` | Berita/pengumuman yang sudah diterbitkan |
-| POST | `/api/auth/register` | Daftar akun baru |
-| POST | `/api/auth/login` | Masuk; JWT dikirim sebagai cookie httpOnly |
-| POST | `/api/auth/logout` | Keluar dan menghapus cookie sesi |
-| GET | `/api/auth/me` | Profil akun yang sedang masuk |
-| PATCH | `/api/auth/password` | Ganti password akun yang sedang masuk |
-| GET | `/api/cart` | Isi keranjang beserta subtotal |
-| POST | `/api/cart/items` | Tambah produk ke keranjang |
-| PATCH | `/api/cart/items/:productId` | Ubah jumlah (0 = hapus) |
-| DELETE | `/api/cart/items/:productId` | Hapus produk dari keranjang |
-| GET | `/api/orders` | Riwayat pesanan (harus masuk) |
-| POST | `/api/orders` | Buat pesanan dari keranjang (harus masuk) |
-| GET | `/api/favorites` | Daftar produk favorit |
-| POST | `/api/favorites/:productId` | Tambah/hapus favorit |
-| POST | `/api/newsletter` | Daftar newsletter |
-| POST | `/api/admin/uploads/images` | Upload gambar JPG/PNG/WEBP/GIF (maks. 5 MB, admin) |
-| GET/POST | `/api/admin/announcements` | Daftar dan buat berita/pengumuman (admin) |
-| PATCH/DELETE | `/api/admin/announcements/:id` | Ubah atau hapus berita/pengumuman (admin) |
-| PATCH | `/api/admin/orders/:id/payment-status` | Catat status pembayaran manual (admin) |
-| PATCH | `/api/admin/orders/:id/appointment-status` | Ubah status konfirmasi sesi (admin) |
-
-Seluruh endpoint keranjang dan favorit bisa dipakai tanpa masuk akun: pemiliknya
-ditentukan dari cookie sesi. Saat pengunjung masuk atau mendaftar, keranjang dan
-favorit tamunya otomatis dipindahkan ke akun tersebut.
-
-## Struktur folder
-
-```text
-e-commerce/
-├── public/                     # frontend statis
-│   ├── index.html              # halaman toko
-│   ├── dashboard.html          # panel admin
-│   ├── css/                    # stylesheet halaman aktif
-│   ├── js/                     # JavaScript halaman aktif
-│   └── assets/                 # gambar dan stylesheet bersama
-├── server/                     # REST API Express
-│   ├── config/db.js            # connection pool mysql2
-│   ├── controllers/            # logika request per domain
-│   ├── middleware/auth.js      # JWT
-│   ├── middleware/imageUpload.js # validasi dan penyimpanan upload gambar
-│   ├── routes/                 # public, auth, commerce, dan admin
-│   │   ├── index.js
-│   │   ├── publicRoutes.js
-│   │   ├── authRoutes.js
-│   │   ├── commerceRoutes.js
-│   │   └── adminRoutes.js
-│   └── server.js
-├── database/
-│   ├── schema.sql              # DDL seluruh tabel + view
-├── .env.example
-└── package.json
+```bash
+npm start
 ```
 
-## Catatan implementasi
+Untuk mode development:
 
-Unggahan gambar disimpan di `public/uploads/` dan dibatasi ke JPG, PNG, WEBP, atau GIF maksimal 5 MB. Berkas upload lokal diabaikan oleh Git.
+```bash
+npm run dev
+```
 
-**Tidak ada data yang disimpan di browser.** Keranjang, favorit, akun, dan pesanan
-seluruhnya berada di MySQL. Browser hanya memegang dua cookie httpOnly yang tidak
-bisa dibaca JavaScript:
+Aplikasi akan berjalan di:
 
-- `lokamart_sid` — penanda sesi pengunjung, menautkan keranjang & favorit tamu ke barisnya di database.
-- `lokamart_token` — JWT sesi login.
+```text
+http://localhost:3000
+```
 
-Saat checkout, isi keranjang dibaca server langsung dari tabel `cart_items`; harga,
-ongkir, dan stok dihitung ulang di server, lalu pesanan dibuat, stok dikurangi, dan
-keranjang dikosongkan dalam satu transaksi. Jadwal sesi masih merupakan permintaan
-yang menunggu konfirmasi admin. Pembayaran dicatat manual dan belum terhubung ke
-payment gateway atau notifikasi otomatis.
+> Penting: jangan membuka file HTML langsung dari browser melalui Live Server atau double-click pada file `public/index.html`. Aplikasi membutuhkan server Express dan API di `/api` agar data dan sesi bisa berjalan dengan benar.
+
+## Membuat admin pertama
+
+Setelah `.env` diisi, jalankan perintah berikut:
+
+```bash
+npm run admin:create
+```
+
+Perintah ini akan membuat akun admin pertama bila belum ada. Jika admin sudah terdaftar, proses bootstrap akan berhenti tanpa mengganti akun yang ada.
+
+## Struktur proyek
+
+```text
+E-Comerce/
+├── database/
+│   ├── schema.sql
+│   └── migrations/
+├── public/
+│   ├── assets/
+│   ├── css/
+│   ├── js/
+│   ├── dashboard.html
+│   └── index.html
+├── server/
+│   ├── config/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── routes/
+│   ├── scripts/
+│   ├── services/
+│   ├── app.js
+│   ├── server.js
+│   └── ...
+├── .env.example
+├── package.json
+├── README.md
+└── PRD.md
+```
+
+## API utama
+
+Berikut endpoint penting yang tersedia di aplikasi:
+
+| Method | Endpoint | Deskripsi |
+| --- | --- | --- |
+| GET | `/api/products` | Daftar produk/layanan |
+| GET | `/api/products/:id` | Detail satu layanan |
+| GET | `/api/categories` | Daftar kategori |
+| GET | `/api/announcements` | Pengumuman publik |
+| POST | `/api/auth/register` | Registrasi pengguna |
+| POST | `/api/auth/login` | Login ke aplikasi |
+| POST | `/api/auth/logout` | Logout |
+| GET | `/api/auth/me` | Profil user yang sedang login |
+| GET | `/api/cart` | Data keranjang |
+| POST | `/api/cart/items` | Tambah item ke keranjang |
+| PATCH | `/api/cart/items/:productId` | Ubah jumlah item |
+| DELETE | `/api/cart/items/:productId` | Hapus item |
+| GET | `/api/orders` | Riwayat pesanan user |
+| POST | `/api/orders` | Buat pesanan baru |
+| GET | `/api/favorites` | Daftar wishlist |
+| POST | `/api/favorites/:productId` | Tambah atau hapus favorit |
+| POST | `/api/newsletter` | Daftar newsletter |
+| GET/POST | `/api/admin/announcements` | Kelola pengumuman admin |
+| PATCH/DELETE | `/api/admin/announcements/:id` | Edit atau hapus pengumuman |
+| PATCH | `/api/admin/orders/:id/payment-status` | Update status pembayaran |
+| PATCH | `/api/admin/orders/:id/appointment-status` | Update status sesi |
+
+## Data dan aturan bisnis
+
+- Data produk, user, keranjang, wishlist, pesanan, dan pengumuman disimpan di MySQL.
+- Keranjang dan favorit dapat ditautkan ke sesi tamu maupun user yang sudah login.
+- Saat user login, keranjang tamu akan dicatat dan dipindahkan ke akun tersebut.
+- Harga, ongkir, dan ketersediaan dihitung di server sebelum order dibuat.
+- Jadwal layanan memerlukan konfirmasi admin sebelum status sesi diperbarui.
+- Pembayaran saat ini dicatat secara manual; belum terhubung ke gateway pembayaran pihak ketiga.
+
+## Catatan penting
+
+- Upload gambar disimpan di folder `public/uploads/`.
+- File gambar yang diunggah dibatasi ke format JPG, PNG, WEBP, atau GIF.
+- File upload lokal biasanya diabaikan oleh Git.
+- Aplikasi menggunakan cookie HTTP-only untuk sesi dan autentikasi.
+
+## Troubleshooting
+
+### Database tidak terhubung
+
+Pastikan MySQL/MariaDB sudah berjalan dan file `database/schema.sql` sudah diimpor.
+
+### Error `JWT_SECRET` kosong
+
+Isi field `JWT_SECRET` di `.env` dengan string acak yang aman.
+
+### Halaman kosong atau error saat akses
+
+Pastikan aplikasi dibuka melalui `http://localhost:3000`, bukan dari file HTML langsung.
+
+## Lisensi
+
+Project ini dibuat untuk kebutuhan internal bisnis dan dapat dikembangkan lebih lanjut sesuai kebutuhan operasional.
