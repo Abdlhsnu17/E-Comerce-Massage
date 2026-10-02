@@ -1,8 +1,10 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { pool } = require("../config/db");
 const { signToken } = require("../middleware/auth");
 const { TOKEN_COOKIE, COOKIE_OPTIONS } = require("../middleware/session");
 const { mergeGuestData } = require("./cartController");
+const { sendPasswordResetEmail } = require("../services/passwordResetMailer");
 
 const publicUser = row => ({
   id: row.id,
@@ -97,6 +99,55 @@ async function changePassword(req, res, next) {
   }
 }
 
+const resetMessage = "Jika email terdaftar, kami akan mengirimkan tautan untuk mengatur ulang password.";
+
+async function requestPasswordReset(req, res, next) {
+  try {
+    const email = (req.body.email || "").trim().toLowerCase();
+    if (!email) return res.status(400).json({ message: "Email wajib diisi." });
+    const [rows] = await pool.query("SELECT id, email FROM users WHERE email = ?", [email]);
+    if (!rows.length) return res.json({ message: resetMessage });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    await pool.query("DELETE FROM password_reset_tokens WHERE user_id = ? OR expires_at <= NOW()", [rows[0].id]);
+    await pool.query(
+      "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))",
+      [rows[0].id, tokenHash]
+    );
+    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+    await sendPasswordResetEmail({ to: rows[0].email, resetUrl: new URL(`/?reset=${token}`, baseUrl).toString() });
+    res.json({ message: resetMessage });
+  } catch (error) { next(error); }
+}
+
+async function resetPassword(req, res, next) {
+  const token = typeof req.body.token === "string" ? req.body.token : "";
+  const newPassword = req.body.newPassword;
+  if (!token || typeof newPassword !== "string" || newPassword.length < 12) {
+    return res.status(400).json({ message: "Password baru minimal 12 karakter." });
+  }
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [tokens] = await connection.query(
+      "SELECT user_id FROM password_reset_tokens WHERE token_hash = ? AND expires_at > NOW() FOR UPDATE", [tokenHash]
+    );
+    if (!tokens.length) {
+      await connection.rollback();
+      return res.status(400).json({ message: "Tautan reset tidak valid atau sudah kedaluwarsa." });
+    }
+    await connection.query("UPDATE users SET password_hash = ? WHERE id = ?", [await bcrypt.hash(newPassword, 12), tokens[0].user_id]);
+    await connection.query("DELETE FROM password_reset_tokens WHERE user_id = ?", [tokens[0].user_id]);
+    await connection.commit();
+    res.json({ message: "Password berhasil diatur ulang. Silakan masuk." });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally { connection.release(); }
+}
+
 async function me(req, res, next) {
   try {
     const [rows] = await pool.query("SELECT id, name, email, phone, role FROM users WHERE id = ?", [req.user.id]);
@@ -112,4 +163,4 @@ function logout(_req, res) {
   res.json({ message: "Kamu telah keluar dari akun." });
 }
 
-module.exports = { register, login, me, logout, changePassword };
+module.exports = { register, login, me, logout, changePassword, requestPasswordReset, resetPassword };

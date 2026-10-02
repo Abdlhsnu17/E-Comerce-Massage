@@ -13,9 +13,8 @@ async function loadSiteContent() {
 
 async function loadStore() {
   try {
-    const [products, announcements] = await Promise.all([api.products(), api.announcements()]);
-    document.querySelector("#products").innerHTML = products.length ? products.map(p => `<article class="store-card"><img src="${esc(p.image)}" alt="${esc(p.name)}"><div><span class="store-card__tag">${esc(p.category || "Layanan")}</span><h3>${esc(p.name)}</h3>${p.durationMinutes ? `<small class="store-card__duration">${Number(p.durationMinutes)} menit</small>` : ""}<p>${esc(p.description || "Sesi perawatan lembut untuk bayi dan keluarga.")}</p><strong>${rupiah(p.price)}</strong><button class="button button--primary add-cart" data-id="${p.id}">Tambah ke keranjang</button></div></article>`).join("") : `<div class="store-empty"><p>Jadwal layanan sedang disiapkan. Hubungi kami untuk menanyakan sesi dan tarif.</p><a class="button button--primary" href="https://wa.me/${whatsappNumber}?text=Halo%20Sentuhan%20Kecil%2C%20saya%20ingin%20bertanya%20tentang%20jadwal%20dan%20tarif%20pijat%20bayi." target="_blank" rel="noopener">Tanya via WhatsApp</a></div>`;
-    document.querySelector("#announcements").innerHTML = announcements.length ? announcements.map(n => `<article class="news-card"><span class="store-card__tag">${esc(n.kind)}</span><h3>${esc(n.title)}</h3><p>${esc(n.excerpt || n.content)}</p></article>`).join("") : '<p class="store-muted">Belum ada berita.</p>';
+    const products = await api.products();
+    document.querySelector("#products").innerHTML = products.length ? products.map(p => `<article class="store-card"><img src="${esc(p.image)}" alt="${esc(p.name)}"><div><span class="store-card__tag">${esc(p.category || "Layanan")}</span><h3>${esc(p.name)}</h3>${p.durationMinutes ? `<small class="store-card__duration">${Number(p.durationMinutes)} menit</small>` : ""}<p>${esc(p.description || "Sesi perawatan lembut untuk bayi dan keluarga.")}</p><div class="service-like-row"><strong>${rupiah(p.price)}</strong><button class="service-like${p.likedByMe ? " is-active" : ""}" data-like="${p.id}" type="button" aria-label="${p.likedByMe ? "Batalkan suka" : "Sukai"} ${esc(p.name)}" aria-pressed="${p.likedByMe ? "true" : "false"}" title="${p.likedByMe ? "Batalkan suka" : "Sukai layanan"}"><span aria-hidden="true">${p.likedByMe ? "♥" : "♡"}</span><span data-like-count>${Number(p.likeCount) || 0}</span></button></div><button class="button button--primary add-cart" data-id="${p.id}">Tambah ke keranjang</button></div></article>`).join("") : `<div class="store-empty"><p>Jadwal layanan sedang disiapkan. Hubungi kami untuk menanyakan sesi dan tarif.</p><a class="button button--primary" href="https://wa.me/${whatsappNumber}?text=Halo%20Sentuhan%20Kecil%2C%20saya%20ingin%20bertanya%20tentang%20jadwal%20dan%20tarif%20pijat%20bayi." target="_blank" rel="noopener">Tanya via WhatsApp</a></div>`;
     document.querySelectorAll(".add-cart").forEach(button => button.addEventListener("click", async () => {
       if (button.disabled) return;
       const originalLabel = button.textContent;
@@ -31,7 +30,33 @@ async function loadStore() {
         button.disabled = false;
       }
     }));
+    document.querySelectorAll("[data-like]").forEach(button => button.addEventListener("click", async () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        const result = await api.likeProduct(button.dataset.like);
+        button.classList.toggle("is-active", result.likedByMe);
+        button.setAttribute("aria-pressed", String(result.likedByMe));
+        button.setAttribute("aria-label", `${result.likedByMe ? "Batalkan suka" : "Sukai"} ${products.find(product => product.id === result.productId)?.name || "layanan"}`);
+        button.title = result.likedByMe ? "Batalkan suka" : "Sukai layanan";
+        button.querySelector("[aria-hidden]").textContent = result.likedByMe ? "♥" : "♡";
+        button.querySelector("[data-like-count]").textContent = result.likeCount;
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    }));
   } catch (e) { document.querySelector("#products").innerHTML = `<p class="store-muted">${esc(e.message)} Pastikan server dan database sudah berjalan.</p>`; }
+
+  // Pengumuman bukan prasyarat katalog. Jika modulnya belum dimigrasikan,
+  // layanan tetap dapat dipilih dan dipesan.
+  try {
+    const announcements = await api.announcements();
+    document.querySelector("#announcements").innerHTML = announcements.length ? announcements.map(n => `<article class="news-card"><span class="store-card__tag">${esc(n.kind)}</span><h3>${esc(n.title)}</h3><p>${esc(n.excerpt || n.content)}</p></article>`).join("") : '<p class="store-muted">Belum ada berita.</p>';
+  } catch (_error) {
+    document.querySelector("#announcements").innerHTML = '<p class="store-muted">Pengumuman sedang tidak tersedia.</p>';
+  }
 }
 
 async function renderCart() {
@@ -93,6 +118,25 @@ async function renderCart() {
     document.querySelector("#cart").innerHTML = `<p class="store-muted">${esc(error.message)}</p>`;
   }
 }
-function setupAuth() { const modal=document.querySelector("#auth-modal"), form=document.querySelector("#auth-form"), title=document.querySelector("#auth-title"), name=document.querySelector("#auth-name"), nameLabel=document.querySelector("#auth-name-label"), msg=document.querySelector("#auth-message"); let mode="login"; const open=m=>{mode=m;title.textContent=m==="login"?"Masuk":"Daftar akun";nameLabel.hidden=m==="login";name.required=m!=="login";name.disabled=m==="login";form.reset();msg.textContent="";modal.hidden=false;}; document.querySelector("#login-open").onclick=()=>open("login");document.querySelector("#register-open").onclick=()=>open("register");document.querySelector("#auth-close").onclick=()=>modal.hidden=true;form.onsubmit=async e=>{e.preventDefault();msg.textContent="Memproses…";try{const r=mode==="login"?await api.login(Object.fromEntries(new FormData(form))):await api.register(Object.fromEntries(new FormData(form)));modal.hidden=true;showUser(r.user);}catch(x){msg.textContent=x.message;}};api.me().then(showUser).catch(()=>{});if(new URLSearchParams(location.search).has("login"))open("login"); }
+function setupAuth() {
+  const modal = document.querySelector("#auth-modal"), form = document.querySelector("#auth-form"), title = document.querySelector("#auth-title");
+  const name = document.querySelector("#auth-name"), nameLabel = document.querySelector("#auth-name-label"), msg = document.querySelector("#auth-message");
+  const forgotForm = document.querySelector("#forgot-form"), resetForm = document.querySelector("#reset-form");
+  let mode = "login";
+  const showOnly = visible => [form, forgotForm, resetForm].forEach(item => item.hidden = item !== visible);
+  const open = m => { mode = m; title.textContent = m === "login" ? "Masuk" : "Daftar akun"; nameLabel.hidden = m === "login"; name.required = m !== "login"; name.disabled = m === "login"; form.password.minLength = m === "login" ? 6 : 12; form.reset(); msg.textContent = ""; showOnly(form); modal.hidden = false; };
+  const openForgot = () => { title.textContent = "Lupa password"; forgotForm.reset(); forgotForm.querySelector("p").textContent = ""; showOnly(forgotForm); modal.hidden = false; };
+  const openReset = () => { title.textContent = "Atur ulang password"; resetForm.reset(); resetForm.querySelector("p").textContent = ""; showOnly(resetForm); modal.hidden = false; };
+  document.querySelector("#login-open").onclick = () => open("login");
+  document.querySelector("#register-open").onclick = () => open("register");
+  document.querySelector("#auth-close").onclick = () => modal.hidden = true;
+  document.querySelector("#forgot-password").onclick = openForgot;
+  document.querySelectorAll(".back-to-login").forEach(button => button.onclick = () => open("login"));
+  form.onsubmit = async event => { event.preventDefault(); msg.textContent = "Memproses…"; try { const response = mode === "login" ? await api.login(Object.fromEntries(new FormData(form))) : await api.register(Object.fromEntries(new FormData(form))); modal.hidden = true; showUser(response.user); } catch (error) { msg.textContent = error.message; } };
+  forgotForm.onsubmit = async event => { event.preventDefault(); const notice = forgotForm.querySelector("p"); notice.textContent = "Mengirim…"; try { const response = await api.requestPasswordReset(Object.fromEntries(new FormData(forgotForm))); notice.textContent = response.message; } catch (error) { notice.textContent = error.message; } };
+  resetForm.onsubmit = async event => { event.preventDefault(); const notice = resetForm.querySelector("p"), values = Object.fromEntries(new FormData(resetForm)); if (values.newPassword !== values.confirmPassword) return notice.textContent = "Konfirmasi password tidak sama."; notice.textContent = "Menyimpan…"; try { const response = await api.resetPassword({ token: new URLSearchParams(location.search).get("reset"), newPassword: values.newPassword }); notice.textContent = response.message; history.replaceState({}, "", location.pathname); setTimeout(() => open("login"), 1200); } catch (error) { notice.textContent = error.message; } };
+  api.me().then(showUser).catch(() => {});
+  const query = new URLSearchParams(location.search); if (query.has("reset")) openReset(); else if (query.has("login")) open("login");
+}
 function showUser(user){currentUser=user;const menu=document.querySelector("#user-menu");document.querySelector("#login-open").hidden=true;document.querySelector("#register-open").hidden=true;menu.hidden=false;menu.innerHTML=`Halo, ${esc(user.name)} ${user.role==="admin"?'<a class="auth-link dashboard-link" href="/dashboard.html">Dashboard</a>':""} <button id="logout-btn" class="auth-link">Keluar</button>`;document.querySelector("#logout-btn").onclick=async()=>{await api.logout();currentUser=null;location.reload();};renderCart();}
 document.addEventListener("DOMContentLoaded", () => { loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); });

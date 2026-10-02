@@ -3,6 +3,7 @@
  .auth-dialog [hidden],.auth-modal[hidden]{display:none!important}
 @media(max-width:900px){.header__inner{gap:8px}.auth-actions{margin-left:auto}.button--nav{display:none}}
 .checkout-form{display:grid;gap:10px;margin-top:22px;max-width:560px}.checkout-form input,.checkout-form textarea,.checkout-form select{padding:12px;border:1px solid #cbded5;border-radius:8px;font:inherit}.checkout-form textarea{min-height:80px}.checkout-form .button{border:0;cursor:pointer}
+.service-like-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.store-card .service-like-row strong{margin:14px 0}.service-like{display:inline-flex;align-items:center;gap:6px;min-width:54px;min-height:34px;padding:0 9px;border:1px solid #dce9e3;border-radius:18px;background:#fff;color:#60746b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.service-like span:first-child{font-size:18px;line-height:1}.service-like.is-active{border-color:#e8aaa0;color:#c75b4d}.service-like:disabled{opacity:.65;cursor:wait}
 
 /* Shared polish for catalogue, news, checkout and authentication surfaces. */
 .store-grid,.news-grid{gap:24px}

@@ -8,6 +8,7 @@ const api = {
     return data;
   },
   products: () => api.request("/products"),
+  likeProduct: productId => api.request(`/products/${productId}/like`, { method: "POST" }),
   categories: () => api.request("/categories"),
   announcements: () => api.request("/announcements"),
   siteContent: () => api.request("/site-content"),
@@ -27,6 +28,8 @@ const api = {
   register: body => api.request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
   me: () => api.request("/auth/me"),
   changePassword: body => api.request("/auth/password", { method: "PATCH", body: JSON.stringify(body) }),
+  requestPasswordReset: body => api.request("/auth/password-reset", { method: "POST", body: JSON.stringify(body) }),
+  resetPassword: body => api.request("/auth/password-reset/confirm", { method: "POST", body: JSON.stringify(body) }),
   logout: () => api.request("/auth/logout", { method: "POST" }),
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
   admin: {

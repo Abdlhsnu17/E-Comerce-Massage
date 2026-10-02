@@ -73,6 +73,22 @@ CREATE TABLE users (
   KEY idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Token pemulihan password. Token asli hanya dikirim melalui email; database
+-- menyimpan hash-nya agar token tidak dapat dipakai bila database bocor.
+CREATE TABLE password_reset_tokens (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     INT UNSIGNED    NOT NULL,
+  token_hash  CHAR(64)        NOT NULL,
+  expires_at  DATETIME        NOT NULL,
+  created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_reset_tokens_hash (token_hash),
+  KEY idx_password_reset_tokens_user (user_id),
+  KEY idx_password_reset_tokens_expiry (expires_at),
+  CONSTRAINT fk_password_reset_tokens_user FOREIGN KEY (user_id)
+    REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ---------------------------------------------------------------------
 -- Keranjang belanja.
 -- Milik user yang sudah masuk (user_id) atau pengunjung tamu (session_token
@@ -125,6 +141,25 @@ CREATE TABLE favorites (
   CONSTRAINT fk_favorites_user FOREIGN KEY (user_id)
     REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_favorites_product FOREIGN KEY (product_id)
+    REFERENCES products (id) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Like layanan; pemiliknya berupa akun atau session pengunjung.
+-- ---------------------------------------------------------------------
+CREATE TABLE service_likes (
+  id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id        INT UNSIGNED NULL,
+  session_token  CHAR(36)     NULL,
+  product_id     INT UNSIGNED NOT NULL,
+  created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_service_likes_user (user_id, product_id),
+  UNIQUE KEY uq_service_likes_session (session_token, product_id),
+  KEY idx_service_likes_product (product_id),
+  CONSTRAINT fk_service_likes_user FOREIGN KEY (user_id)
+    REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT fk_service_likes_product FOREIGN KEY (product_id)
     REFERENCES products (id) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -247,6 +282,10 @@ SET @massage_category_id := (SELECT id FROM categories WHERE slug = 'pijat-bayi'
 INSERT INTO products
   (category_id, name, slug, description, duration_minutes, price, stock, badge, image, is_active)
 VALUES
+  (@massage_category_id, 'Pijat Bayi (atur tarif di dashboard)', 'pijat-bayi-atur-tarif', 'Lengkapi tarif, kuota, dan foto layanan di dashboard admin sebelum layanan diaktifkan.', NULL, 0, 0, 'Draft', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 0),
+  (@massage_category_id, 'Baby Massage 30 menit', 'baby-massage-30-menit', 'Pijat lembut untuk membantu si kecil rileks dan nyaman.', 30, 75000, 99, 'Pilihan hangat', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 1),
+  (@massage_category_id, 'Baby Spa 45 menit', 'baby-spa-45-menit', 'Perawatan pijat dan spa lembut untuk pengalaman yang menenangkan.', 45, 100000, 99, 'Favorit', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 1),
+  (@massage_category_id, 'Massage & Spa 60 menit', 'massage-spa-60-menit', 'Sesi lengkap massage dan spa untuk waktu istimewa bersama si kecil.', 60, 135000, 99, 'Sesi lengkap', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 1),
   (@massage_category_id, 'Baby Massage Relaksasi', 'baby-massage-relaksasi-30', 'Pijat lembut untuk membantu bayi rileks, tidur lebih nyaman, dan menikmati sentuhan hangat.', 30, 75000, 20, 'Pilihan populer', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 1),
   (@massage_category_id, 'Baby Spa Sensory', 'baby-spa-sensory-45', 'Sesi spa ringan dan stimulasi sensorik yang menyenangkan untuk si kecil.', 45, 100000, 15, 'Favorit', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 1),
   (@massage_category_id, 'Massage & Spa Lengkap', 'massage-spa-lengkap-60', 'Kombinasi massage dan spa untuk momen perawatan yang lebih lengkap.', 60, 135000, 12, 'Sesi lengkap', 'https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85', 1),

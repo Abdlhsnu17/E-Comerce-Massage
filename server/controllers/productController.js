@@ -1,4 +1,5 @@
 const { pool } = require("../config/db");
+const { owner } = require("../middleware/session");
 
 const SORTS = {
   featured: "p.review_count DESC, p.rating DESC",
@@ -10,6 +11,7 @@ const SORTS = {
 async function listProducts(req, res, next) {
   try {
     const { category, q, sort } = req.query;
+    const likeOwner = owner(req);
     const where = ["p.is_active = 1"];
     const params = [];
 
@@ -26,15 +28,51 @@ async function listProducts(req, res, next) {
       `SELECT p.id, p.name, p.slug, c.name AS category, p.description,
               p.duration_minutes AS durationMinutes,
               p.price, p.old_price AS oldPrice, p.rating,
-              p.review_count AS reviews, p.stock, p.badge, p.image
+              p.review_count AS reviews, p.stock, p.badge, p.image,
+              (SELECT COUNT(*) FROM service_likes sl WHERE sl.product_id = p.id) AS likeCount,
+              EXISTS(SELECT 1 FROM service_likes sl WHERE sl.product_id = p.id AND sl.${likeOwner.column} = ?) AS likedByMe
          FROM products p
          JOIN categories c ON c.id = p.category_id
         WHERE ${where.join(" AND ")}
         ORDER BY ${SORTS[sort] || SORTS.featured}`,
-      params
+      [likeOwner.value, ...params]
     );
 
-    res.json(rows);
+    res.json(rows.map(row => ({ ...row, likeCount: Number(row.likeCount), likedByMe: Boolean(row.likedByMe) })));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function toggleServiceLike(req, res, next) {
+  try {
+    const productId = Number(req.params.id);
+    if (!Number.isSafeInteger(productId) || productId < 1) {
+      return res.status(400).json({ message: "Layanan tidak valid." });
+    }
+
+    const [products] = await pool.query("SELECT id FROM products WHERE id = ? AND is_active = 1", [productId]);
+    if (!products.length) return res.status(404).json({ message: "Layanan tidak ditemukan." });
+
+    const likeOwner = owner(req);
+    const [insertResult] = await pool.query(
+      `INSERT IGNORE INTO service_likes (${likeOwner.column}, product_id) VALUES (?, ?)`,
+      [likeOwner.value, productId]
+    );
+    if (insertResult.affectedRows === 0) {
+      await pool.query(
+        `DELETE FROM service_likes WHERE ${likeOwner.column} = ? AND product_id = ?`,
+        [likeOwner.value, productId]
+      );
+    }
+
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS likeCount,
+              EXISTS(SELECT 1 FROM service_likes WHERE ${likeOwner.column} = ? AND product_id = ?) AS likedByMe
+         FROM service_likes WHERE product_id = ?`,
+      [likeOwner.value, productId, productId]
+    );
+    res.json({ productId, likeCount: Number(rows[0].likeCount), likedByMe: Boolean(rows[0].likedByMe) });
   } catch (error) {
     next(error);
   }
@@ -74,4 +112,4 @@ async function listCategories(_req, res, next) {
   }
 }
 
-module.exports = { listProducts, getProduct, listCategories };
+module.exports = { listProducts, getProduct, listCategories, toggleServiceLike };

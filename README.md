@@ -63,6 +63,14 @@ JWT_EXPIRES_IN=7d
 BOOTSTRAP_ADMIN_EMAIL=admin@email.com
 BOOTSTRAP_ADMIN_NAME=Administrator Sentuhan Kecil
 BOOTSTRAP_ADMIN_PASSWORD=PasswordMinimal12Karakter
+APP_URL=http://localhost:3000
+# Konfigurasi SMTP untuk fitur lupa password
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=username
+SMTP_PASS=password-aplikasi-atau-api-key
+MAIL_FROM="Sentuhan Kecil <no-reply@example.com>"
 ```
 
 ## Menjalankan aplikasi
@@ -151,6 +159,8 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | POST | `/api/auth/register` | Registrasi pengguna |
 | POST | `/api/auth/login` | Login ke aplikasi |
 | POST | `/api/auth/logout` | Logout |
+| POST | `/api/auth/password-reset` | Meminta tautan reset password via email |
+| POST | `/api/auth/password-reset/confirm` | Menyimpan password baru memakai token reset |
 | GET | `/api/auth/me` | Profil user yang sedang login |
 | GET | `/api/cart` | Data keranjang |
 | POST | `/api/cart/items` | Tambah item ke keranjang |
@@ -183,6 +193,7 @@ Berikut endpoint penting yang tersedia di aplikasi:
 - File gambar yang diunggah dibatasi ke format JPG, PNG, WEBP, atau GIF.
 - File upload lokal biasanya diabaikan oleh Git.
 - Aplikasi menggunakan cookie HTTP-only untuk sesi dan autentikasi.
+- Reset password menggunakan token sekali pakai yang berlaku 30 menit. Atur variabel SMTP di `.env` untuk pengiriman email. Dalam development tanpa SMTP, tautan reset dicetak di terminal server; production akan menolak pengiriman sampai SMTP dikonfigurasi.
 
 ## Troubleshooting
 

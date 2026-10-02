@@ -11,6 +11,29 @@ const SERVICES = [
 
 const IMAGE = "https://images.unsplash.com/photo-1489760176169-fd3d32805239?auto=format&fit=crop&w=1000&q=85";
 
+async function ensureServiceLikesTable() {
+  // Database yang dibuat sebelum fitur like ditambahkan belum memiliki tabel
+  // ini. Endpoint katalog tetap menghitung like, jadi siapkan tabelnya saat
+  // aplikasi mulai agar katalog tidak gagal dimuat pada instalasi lama.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS service_likes (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT UNSIGNED NULL,
+      session_token CHAR(36) NULL,
+      product_id INT UNSIGNED NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_service_likes_user (user_id, product_id),
+      UNIQUE KEY uq_service_likes_session (session_token, product_id),
+      KEY idx_service_likes_product (product_id),
+      CONSTRAINT fk_service_likes_user FOREIGN KEY (user_id)
+        REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE,
+      CONSTRAINT fk_service_likes_product FOREIGN KEY (product_id)
+        REFERENCES products (id) ON UPDATE CASCADE ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 /** Memastikan katalog awal tersedia tanpa menimpa perubahan dari admin. */
 async function ensureMassageCatalog() {
   const [columns] = await pool.query(
@@ -21,6 +44,8 @@ async function ensureMassageCatalog() {
   if (!columns.length) {
     await pool.query("ALTER TABLE products ADD COLUMN duration_minutes SMALLINT UNSIGNED NULL AFTER description");
   }
+
+  await ensureServiceLikesTable();
 
   await pool.query(
     "INSERT INTO categories (name, slug) VALUES ('Pijat Bayi', 'pijat-bayi') ON DUPLICATE KEY UPDATE slug = slug"
