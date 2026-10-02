@@ -259,15 +259,14 @@ async function updateProduct(req, res, next) {
 }
 
 /**
- * Produk yang pernah dipesan tidak dihapus permanen — order_items menyimpan
- * salinan nama & harga, tetapi katalog tetap butuh barisnya untuk konsistensi.
- * Karena itu penghapusan dilakukan sebagai penonaktifan (is_active = 0).
+ * Hapus layanan dari katalog. Riwayat pesanan tetap aman: order_items
+ * menyimpan snapshot nama/harga dan foreign key product_id memakai SET NULL.
  */
-async function deactivateProduct(req, res, next) {
+async function deleteProduct(req, res, next) {
   try {
-    const [result] = await pool.query("UPDATE products SET is_active = 0 WHERE id = ?", [req.params.id]);
+    const [result] = await pool.query("DELETE FROM products WHERE id = ?", [req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: "Produk tidak ditemukan." });
-    res.json({ id: Number(req.params.id), message: "Produk dinonaktifkan dari katalog." });
+    res.json({ id: Number(req.params.id), message: "Produk berhasil dihapus." });
   } catch (error) {
     next(error);
   }
@@ -359,7 +358,7 @@ module.exports = {
   listAllProducts,
   createProduct,
   updateProduct,
-  deactivateProduct,
+  deleteProduct,
   listUsers,
   createUser,
   updateUserRole,

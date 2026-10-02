@@ -163,6 +163,8 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | POST | `/api/newsletter` | Daftar newsletter |
 | GET/POST | `/api/admin/announcements` | Kelola pengumuman admin |
 | PATCH/DELETE | `/api/admin/announcements/:id` | Edit atau hapus pengumuman |
+| GET/POST | `/api/admin/products` | Lihat atau tambah layanan di katalog |
+| PATCH/DELETE | `/api/admin/products/:id` | Edit atau hapus layanan |
 | PATCH | `/api/admin/orders/:id/payment-status` | Update status pembayaran |
 | PATCH | `/api/admin/orders/:id/appointment-status` | Update status sesi |
 

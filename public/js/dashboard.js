@@ -75,7 +75,7 @@ function renderServices(products) {
   dashboardProducts = products;
   document.querySelector("#service-count").textContent = `${products.length} layanan`;
   document.querySelector("#services-empty").hidden = products.length > 0;
-  document.querySelector("#services-table").innerHTML = products.slice(0, 50).map(product => `<tr><td>${dashboardEsc(product.name)}</td><td>${dashboardEsc(product.category)}</td><td>${Number(product.durationMinutes) || 0} menit</td><td>${dashboardMoney(product.price)}</td><td>${product.isActive ? "Aktif" : "Nonaktif"}</td><td><button class="edit-product" data-edit-service="${Number(product.id)}" type="button">Edit</button> ${product.isActive ? `<button class="deactivate-product" data-deactivate-service="${Number(product.id)}" type="button">Nonaktifkan</button>` : `<button class="activate-product" data-activate-service="${Number(product.id)}" type="button" ${Number(product.price) > 0 && Number(product.stock) > 0 ? "" : "disabled title=\"Isi tarif dan kuota sebelum mengaktifkan layanan\""}>Aktifkan</button>`}</td></tr>`).join("");
+  document.querySelector("#services-table").innerHTML = products.slice(0, 50).map(product => `<tr><td>${dashboardEsc(product.name)}</td><td>${dashboardEsc(product.category)}</td><td>${Number(product.durationMinutes) || 0} menit</td><td>${dashboardMoney(product.price)}</td><td>${product.isActive ? "Aktif" : "Nonaktif"}</td><td><button class="edit-product" data-edit-service="${Number(product.id)}" type="button">Edit</button> <button class="delete-product" data-delete-service="${Number(product.id)}" type="button">Hapus</button></td></tr>`).join("");
 }
 
 function renderServiceCategories(categories) {
@@ -250,17 +250,17 @@ serviceForm.addEventListener("submit", async event => {
 });
 document.querySelector("#services-table").addEventListener("click", async event => {
   const edit = event.target.closest("[data-edit-service]");
-  const deactivate = event.target.closest("[data-deactivate-service]");
-  const activate = event.target.closest("[data-activate-service]");
-  const productId = Number(edit?.dataset.editService || deactivate?.dataset.deactivateService || activate?.dataset.activateService);
+  const remove = event.target.closest("[data-delete-service]");
+  const productId = Number(edit?.dataset.editService || remove?.dataset.deleteService);
   if (!productId) return;
   const product = dashboardProducts.find(item => item.id === productId);
   if (edit && product) return openServiceEditor(product);
-  const button = deactivate || activate;
+  if (!remove || !product) return;
+  if (!window.confirm(`Hapus layanan ${product.name}? Riwayat pesanan yang sudah ada tetap tersimpan.`)) return;
+  const button = remove;
   button.disabled = true;
   try {
-    if (deactivate) await api.admin.deactivateProduct(productId);
-    else await api.admin.updateProduct(productId, { isActive: true });
+    await api.admin.deleteProduct(productId);
     await refreshDashboard();
   } catch (error) {
     dashboardMessage.textContent = error.message;

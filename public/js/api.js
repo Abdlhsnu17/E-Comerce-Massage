@@ -35,7 +35,7 @@ const api = {
     products: () => api.request("/admin/products"),
     createProduct: body => api.request("/admin/products", { method: "POST", body: JSON.stringify(body) }),
     updateProduct: (id, body) => api.request(`/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    deactivateProduct: id => api.request(`/admin/products/${id}`, { method: "DELETE" }),
+    deleteProduct: id => api.request(`/admin/products/${id}`, { method: "DELETE" }),
     uploadImage: file => { const body = new FormData(); body.append("image", file); return api.request("/admin/uploads/images", { method: "POST", body }); },
     setOrderStatus: (id, status) => api.request(`/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setPaymentStatus: (id, status) => api.request(`/admin/orders/${id}/payment-status`, { method: "PATCH", body: JSON.stringify({ status }) })

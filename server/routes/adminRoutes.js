@@ -23,7 +23,7 @@ router.delete("/announcements/:id", announcements.remove);
 router.get("/products", admin.listAllProducts);
 router.post("/products", admin.createProduct);
 router.patch("/products/:id", admin.updateProduct);
-router.delete("/products/:id", admin.deactivateProduct);
+router.delete("/products/:id", admin.deleteProduct);
 router.get("/users", admin.listUsers);
 router.post("/users", admin.createUser);
 router.patch("/users/:id/role", admin.updateUserRole);
