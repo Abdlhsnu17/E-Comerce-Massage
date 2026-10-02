@@ -1,10 +1,12 @@
 require("dotenv").config();
 
+const { validateEnvironment } = require("./config/environment");
 const { createApp } = require("./app");
-const { testConnection } = require("./config/db");
+const { pool, testConnection } = require("./config/db");
 const { ensureMassageCatalog } = require("./services/massageCatalogBootstrap");
 
 const PORT = Number(process.env.PORT || 3000);
+validateEnvironment();
 const app = createApp();
 
 async function start() {
@@ -19,8 +21,8 @@ async function start() {
     process.exit(1);
   }
 
-  const server = app.listen(PORT, () =>
-    console.log(`✔ Aera Baby Spa berjalan di http://localhost:${PORT} — buka alamat ini di browser, bukan Live Server.`)
+  const server = app.listen(PORT, "127.0.0.1", () =>
+    console.log(`✔ Aera Baby Spa mendengarkan di 127.0.0.1:${PORT}`)
   );
 
   server.on("error", error => {
@@ -32,6 +34,21 @@ async function start() {
     }
     throw error;
   });
+
+  let shuttingDown = false;
+  const shutdown = signal => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`Menerima ${signal}; menghentikan server dengan aman.`);
+    server.close(async error => {
+      try { await pool.end(); } catch (dbError) { console.error("Gagal menutup pool database:", dbError); }
+      process.exitCode = error ? 1 : 0;
+      if (error) console.error(error);
+    });
+    setTimeout(() => process.exit(1), 10_000).unref();
+  };
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
 start();

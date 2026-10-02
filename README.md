@@ -37,7 +37,7 @@ Proyek ini dirancang untuk bisnis layanan pijat bayi yang ingin menawarkan:
 
 ## Prasyarat
 
-- Node.js 18+
+- Node.js 20+ (sesuai kebutuhan Nodemailer 10)
 - MySQL / MariaDB yang berjalan di localhost:3306
 - Access ke database dengan user yang memiliki hak membuat database dan tabel
 
@@ -104,6 +104,19 @@ Aplikasi akan berjalan di:
 ```text
 http://localhost:3000
 ```
+
+## Deploy ke VPS (Ubuntu + Nginx)
+
+Gunakan Node.js 20+, MySQL/MariaDB, dan Nginx. Aplikasi hanya mendengarkan di `127.0.0.1`, sehingga akses publik harus melalui Nginx dan HTTPS.
+
+1. Salin kode ke `/var/www/aera-baby-spa`, jalankan `npm ci --omit=dev`, lalu impor `database/schema.sql` pada database baru.
+2. Buat `/etc/aera-baby-spa.env` dengan permission `600` dan milik user root. Isi setidaknya `NODE_ENV=production`, `PORT=3000`, `TRUST_PROXY=1`, koneksi database, `JWT_SECRET` acak minimal 32 karakter, `APP_URL=https://domain-anda`, dan seluruh variabel SMTP.
+3. Buat direktori upload dan berikan akses hanya ke user aplikasi: `sudo install -d -o www-data -g www-data /var/www/aera-baby-spa/public/uploads`.
+4. Salin [unit systemd](deploy/aera-baby-spa.service) ke `/etc/systemd/system/aera-baby-spa.service`; sesuaikan path Node bila perlu. Lalu jalankan `sudo systemctl daemon-reload && sudo systemctl enable --now aera-baby-spa`.
+5. Salin [konfigurasi Nginx](deploy/nginx-aera-baby-spa.conf), ganti domain dan lokasi sertifikat TLS, validasi dengan `sudo nginx -t`, lalu reload Nginx.
+6. Pastikan `https://domain-anda/health` membalas `{"status":"ok"}`. Backup database dan `public/uploads/` secara berkala.
+
+Jangan membuka port 3000 dari internet. Buka hanya 80/443 pada firewall dan gunakan sertifikat TLS yang aktif sebelum mengarahkan domain produksi.
 
 > Penting: jangan membuka file HTML langsung dari browser melalui Live Server atau double-click pada file `public/index.html`. Aplikasi membutuhkan server Express dan API di `/api` agar data dan sesi bisa berjalan dengan benar.
 
