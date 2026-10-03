@@ -40,7 +40,7 @@
             <div class="service-form-grid">
               <label>Nama layanan<input name="name" type="text" maxlength="150" required /></label>
               <label>Kategori<select name="categoryId" required><option value="">Pilih kategori</option></select></label>
-              <label>Durasi (menit)<input name="durationMinutes" type="number" min="1" step="5" required /></label>
+              <label>Durasi (menit)<select name="durationMinutes" required><option value="">Pilih durasi</option><option value="30">30 menit</option><option value="45">45 menit</option><option value="60">60 menit</option></select></label>
               <label>Harga (Rp)<input name="price" type="number" min="0" step="1000" required /></label>
               <label>Stok / kuota<input name="stock" type="number" min="0" step="1" value="0" required /></label>
               <label class="service-form-full">Deskripsi<textarea name="description" rows="3"></textarea></label>

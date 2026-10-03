@@ -11,6 +11,7 @@ const { pool } = require("../config/db");
 const ORDER_STATUSES = ["Sedang diproses", "Dikirim", "Selesai", "Dibatalkan"];
 const PAYMENT_STATUSES = ["Menunggu pembayaran", "Dibayar", "Gagal", "Dibatalkan"];
 const APPOINTMENT_STATUSES = ["Menunggu konfirmasi", "Dikonfirmasi", "Selesai", "Dibatalkan"];
+const ALLOWED_DURATION_MINUTES = new Set([30, 45, 60]);
 
 /** "Nimbus Pro" → "nimbus-pro"; dipakai bila admin tidak mengisi slug sendiri. */
 function slugify(text) {
@@ -213,8 +214,8 @@ async function createProduct(req, res, next) {
     const stock = toNumber(req.body.stock) ?? 0;
     const durationMinutes = toNumber(req.body.durationMinutes);
 
-    if (!name || !categoryId || price === null || price < 0 || durationMinutes === null || durationMinutes < 1) {
-      return res.status(400).json({ message: "Nama, kategori, durasi, dan harga layanan wajib diisi." });
+    if (!name || !categoryId || price === null || price < 0 || !ALLOWED_DURATION_MINUTES.has(durationMinutes)) {
+      return res.status(400).json({ message: "Nama, kategori, durasi 30/45/60 menit, dan harga layanan wajib diisi." });
     }
 
     const [category] = await pool.query("SELECT id FROM categories WHERE id = ?", [categoryId]);
@@ -253,7 +254,7 @@ async function updateProduct(req, res, next) {
     if (req.body.description !== undefined) set("description", req.body.description || null);
     if (req.body.durationMinutes !== undefined) {
       const durationMinutes = toNumber(req.body.durationMinutes);
-      if (durationMinutes === null || durationMinutes < 1) return res.status(400).json({ message: "Durasi layanan minimal 1 menit." });
+      if (!ALLOWED_DURATION_MINUTES.has(durationMinutes)) return res.status(400).json({ message: "Durasi layanan hanya boleh 30, 45, atau 60 menit." });
       set("duration_minutes", durationMinutes);
     }
     if (req.body.categoryId !== undefined) set("category_id", toNumber(req.body.categoryId));
