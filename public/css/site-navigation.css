@@ -18,7 +18,7 @@
 .user-menu__dropdown button{border-top:1px solid #e5f4e8;border-radius:0;color:#b22061}
 .button--nav{order:4;flex:0 0 auto;min-height:42px;border-radius:10px;background:#e8f6ec;color:#087333;white-space:nowrap}
 .button--nav:hover{background:#d7efdf}
-.button--nav .wa-icon{font-size:15px}
+.button--nav .wa-icon{width:18px;height:18px;flex-basis:18px}
 .main-nav .auth-actions .auth-link{padding:9px 12px}
 .main-nav .auth-actions .auth-link--solid{border-radius:8px}
 @media(max-width:1170px){

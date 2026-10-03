@@ -47,7 +47,7 @@ img { display: block; max-width: 100%; }
 .button--primary { color: var(--white); background: var(--coral); }
 .button--primary:hover { background: var(--coral-dark); box-shadow: 0 10px 20px rgba(255,22,132,.25); }
 .button--light { color: var(--deep); background: var(--white); }
-.wa-icon { color: #009b3a; font-size: 17px; }
+.wa-icon { display: block; width: 19px; height: 19px; flex: 0 0 19px; }
 .hero { position: relative; overflow: hidden; padding: 56px 0 52px; background: var(--mint-light); }
 .hero::before { position: absolute; content: ""; width: 360px; height: 360px; top: -235px; left: 47%; border: 1px solid rgba(24,63,58,.12); border-radius: 50%; box-shadow: 0 0 0 45px rgba(24,63,58,.025), 0 0 0 90px rgba(24,63,58,.02); }
 .hero__grid { display: grid; grid-template-columns: .98fr 1.02fr; gap: 64px; align-items: center; }
