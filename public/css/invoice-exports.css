@@ -1,4 +1,10 @@
 .invoice-export-actions{display:flex;flex-wrap:wrap;gap:8px}
+.invoice-export-menu{position:relative;display:inline-block}
+.invoice-export-menu summary{padding:6px 10px;border:1px solid #87bf99;border-radius:7px;background:#fff;color:#17663a;font:inherit;font-size:12px;font-weight:700;cursor:pointer;list-style:none}
+.invoice-export-menu summary::-webkit-details-marker{display:none}
+.invoice-export-menu[open] summary{background:#effcf1}
+.invoice-export-menu .invoice-export-actions{position:absolute;z-index:2;top:calc(100% + 5px);right:0;min-width:88px;padding:6px;border:1px solid #ccebd4;border-radius:7px;background:#fff;box-shadow:0 8px 18px rgba(23,102,58,.14)}
+.invoice-export-menu .text-button{width:100%;text-align:left}
 .invoice-export-actions button{padding:6px 10px;border:1px solid #87bf99;border-radius:7px;background:#fff;color:#17663a;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .invoice-export-actions button:hover{background:#effcf1}
 .invoice-export-actions button:focus-visible{outline:2px solid #17663a;outline-offset:2px}

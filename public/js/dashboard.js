@@ -77,7 +77,7 @@ function renderOrders(orders) {
     const appointmentOptions = appointmentStatuses.map(status => `<option value="${status}" ${order.appointmentStatus === status ? "selected" : ""}>${status}</option>`).join("");
     const date = order.appointmentDate ? new Date(`${String(order.appointmentDate).slice(0, 10)}T00:00:00`).toLocaleDateString("id-ID", { dateStyle: "medium" }) : "Belum dijadwalkan";
     const location = order.serviceLocation === "home" ? "Kunjungan rumah" : "Studio";
-      return `<tr><td>${dashboardEsc(order.orderCode)}</td><td>${dashboardEsc(order.customerName || order.recipientName)}</td><td>${services}</td><td>${dashboardEsc(date)} ${dashboardEsc(order.appointmentTime || "")}</td><td>${location}</td><td>${dashboardMoney(order.total)}</td><td>${window.invoiceExports.actions(order.id)}</td><td><select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}">${orderOptions}</select></td><td><select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}">${appointmentOptions}</select></td><td><select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}">${paymentOptions}</select></td></tr>`;
+    return `<tr><td>${dashboardEsc(order.orderCode)}</td><td>${dashboardEsc(order.customerName || order.recipientName)}</td><td>${services}</td><td>${dashboardEsc(date)} ${dashboardEsc(order.appointmentTime || "")}</td><td>${location}</td><td>${dashboardMoney(order.total)}</td><td>${window.invoiceExports.actions(order.id)}</td><td><select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}">${orderOptions}</select></td><td><select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}">${appointmentOptions}</select></td><td><select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}">${paymentOptions}</select></td><td><button class="icon-button" type="button" data-cancel-order="${Number(order.id)}" aria-label="Batalkan pesanan ${dashboardEsc(order.orderCode)}" title="Batalkan pesanan">×</button></td></tr>`;
   }).join("");
 }
 
@@ -100,6 +100,7 @@ function openServiceEditor(product = null) {
   serviceForm.elements.name.value = product?.name || "";
   serviceForm.elements.categoryId.value = product?.categoryId || "";
   serviceForm.elements.durationMinutes.value = product?.durationMinutes ?? "";
+  serviceForm.elements.isActive.value = product ? String(!!product.isActive) : "true";
   serviceForm.elements.price.value = product?.price ?? "";
   serviceForm.elements.stock.value = product?.stock ?? 0;
   serviceForm.elements.description.value = product?.description || "";
@@ -187,6 +188,18 @@ document.querySelector("#orders-table").addEventListener("change", async event =
     select.disabled = false;
   }
 });
+document.querySelector("#orders-table").addEventListener("click", async event => {
+  const button = event.target.closest("[data-cancel-order]");
+  if (!button || !window.confirm("Batalkan pesanan ini dan kembalikan stok?")) return;
+  button.disabled = true;
+  try {
+    await api.admin.cancelOrder(button.dataset.cancelOrder);
+    await refreshDashboard();
+  } catch (error) {
+    dashboardMessage.textContent = error.message;
+    button.disabled = false;
+  }
+});
 document.querySelector("#site-content-form").addEventListener("submit", async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -236,6 +249,7 @@ serviceForm.addEventListener("submit", async event => {
     name: values.name.trim(),
     categoryId: Number(values.categoryId),
     durationMinutes: Number(values.durationMinutes),
+    isActive: values.isActive === "true",
     price: Number(values.price),
     stock: Number(values.stock),
     description: values.description.trim(),

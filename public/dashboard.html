@@ -28,7 +28,7 @@
       <div id="ringkasan"><div class="metric-grid" id="metric-grid"></div></div>
       <section id="pesanan" class="dashboard-section">
         <div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Aktivitas</span><h2>Pesanan terbaru</h2></div><span id="order-count" class="section-count"></span></div>
-        <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Pelanggan</th><th>Layanan</th><th>Jadwal</th><th>Lokasi</th><th>Total</th><th>Invoice</th><th>Status pesanan</th><th>Status sesi</th><th>Pembayaran</th></tr></thead><tbody id="orders-table"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Pelanggan</th><th>Layanan</th><th>Jadwal</th><th>Lokasi</th><th>Total</th><th>Invoice</th><th>Status pesanan</th><th>Status sesi</th><th>Pembayaran</th><th>Aksi</th></tr></thead><tbody id="orders-table"></tbody></table></div>
         <p class="empty-message" id="orders-empty" hidden>Belum ada pesanan.</p>
       </section>
       <section id="layanan" class="dashboard-section">
@@ -41,6 +41,7 @@
               <label>Nama layanan<input name="name" type="text" maxlength="150" required /></label>
               <label>Kategori<select name="categoryId" required><option value="">Pilih kategori</option></select></label>
               <label>Durasi (menit)<select name="durationMinutes" required><option value="">Pilih durasi</option><option value="30">30 menit</option><option value="45">45 menit</option><option value="60">60 menit</option></select></label>
+              <label>Status layanan<select name="isActive" required><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
               <label>Harga (Rp)<input name="price" type="number" min="0" step="1000" required /></label>
               <label>Stok / kuota<input name="stock" type="number" min="0" step="1" value="0" required /></label>
               <label class="service-form-full">Deskripsi<textarea name="description" rows="3"></textarea></label>

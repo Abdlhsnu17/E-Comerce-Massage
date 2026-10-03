@@ -115,7 +115,7 @@
       ordersToRegister.forEach(order => orders.set(String(order.id), order));
     },
     actions(orderId) {
-      return `<div class="invoice-export-actions"><button class="text-button" type="button" data-invoice-action="pdf" data-invoice-id="${Number(orderId)}">PDF</button><button class="text-button" type="button" data-invoice-action="excel" data-invoice-id="${Number(orderId)}">Excel</button></div>`;
+      return `<details class="invoice-export-menu"><summary>Unduh</summary><div class="invoice-export-actions"><button class="text-button" type="button" data-invoice-action="pdf" data-invoice-id="${Number(orderId)}">PDF</button><button class="text-button" type="button" data-invoice-action="excel" data-invoice-id="${Number(orderId)}">Excel</button></div></details>`;
     },
     createCsv
   };

@@ -15,6 +15,7 @@ router.get("/orders", admin.listAllOrders);
 router.patch("/orders/:id/status", admin.updateOrderStatus);
 router.patch("/orders/:id/payment-status", admin.updatePaymentStatus);
 router.patch("/orders/:id/appointment-status", admin.updateAppointmentStatus);
+router.delete("/orders/:id", admin.cancelOrder);
 router.post("/uploads/images", receiveImage, uploadImage);
 router.get("/announcements", announcements.listAll);
 router.post("/announcements", announcements.create);

@@ -45,6 +45,7 @@ const api = {
     setOrderStatus: (id, status) => api.request(`/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setPaymentStatus: (id, status) => api.request(`/admin/orders/${id}/payment-status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setAppointmentStatus: (id, status) => api.request(`/admin/orders/${id}/appointment-status`, { method: "PATCH", body: JSON.stringify({ status }) })
+    ,cancelOrder: id => api.request(`/admin/orders/${id}`, { method: "DELETE" })
     ,announcements: () => api.request("/admin/announcements")
     ,createAnnouncement: body => api.request("/admin/announcements", { method: "POST", body: JSON.stringify(body) })
     ,updateAnnouncement: (id, body) => api.request(`/admin/announcements/${id}`, { method: "PATCH", body: JSON.stringify(body) })

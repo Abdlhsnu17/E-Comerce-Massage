@@ -141,6 +141,27 @@ async function updateOrderStatus(req, res, next) {
   }
 }
 
+async function cancelOrder(req, res, next) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [orders] = await connection.query("SELECT id, status FROM orders WHERE id = ? FOR UPDATE", [req.params.id]);
+    const order = orders[0];
+    if (!order) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    if (order.status === "Dibatalkan") return res.status(409).json({ message: "Pesanan sudah dibatalkan." });
+    const [items] = await connection.query("SELECT product_id AS productId, quantity FROM order_items WHERE order_id = ? AND product_id IS NOT NULL", [order.id]);
+    for (const item of items) await connection.query("UPDATE products SET stock = stock + ? WHERE id = ?", [item.quantity, item.productId]);
+    await connection.query("UPDATE orders SET status = 'Dibatalkan', payment_status = IF(payment_status = 'Dibayar', payment_status, 'Dibatalkan'), appointment_status = 'Dibatalkan' WHERE id = ?", [order.id]);
+    await connection.commit();
+    res.json({ id: Number(req.params.id), message: "Pesanan dibatalkan dan stok dikembalikan." });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally {
+    connection.release();
+  }
+}
+
 async function updatePaymentStatus(req, res, next) {
   try {
     const { status } = req.body;
@@ -374,6 +395,7 @@ module.exports = {
   getStats,
   listAllOrders,
   updateOrderStatus,
+  cancelOrder,
   updatePaymentStatus,
   updateAppointmentStatus,
   listAllProducts,
