@@ -4,7 +4,7 @@ const { requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 
 const router = express.Router();
-const authAttemptLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: "Terlalu banyak percobaan. Coba lagi dalam 15 menit." });
+const authAttemptLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: "Terlalu banyak percobaan. Coba lagi dalam 15 menit." });
 const resetLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: "Terlalu banyak permintaan reset. Coba lagi dalam satu jam." });
 
 router.post("/register", authAttemptLimit, register);
