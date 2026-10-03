@@ -41,3 +41,16 @@
 /* Pembayaran, invoice, dan riwayat pelanggan. */
 .order-history{margin-top:28px}.order-history__heading{margin-bottom:12px}.order-history__heading h3{margin:7px 0 0;color:#174d32}.order-card{display:grid;gap:14px;margin-top:12px;padding:18px;border:1px solid #ccebd4;border-radius:14px;background:#fff}.order-card>div>p{margin:6px 0 0;color:#5e7e68;font-size:13px}.payment-instructions{display:flex;align-items:center;gap:16px;padding:14px;border-radius:10px;background:#effcf1;color:#174d32}.payment-instructions p{margin:5px 0 0;line-height:1.55}.qris-code{display:grid;place-content:center;width:108px;height:108px;flex:0 0 108px;border:7px solid #174d32;background:repeating-conic-gradient(#174d32 0 25%,#fff 0 50%) 0/18px 18px;color:#174d32;text-align:center;box-shadow:inset 0 0 0 17px #fff}.qris-code span,.qris-code small{padding:2px 4px;background:#fff;font-size:12px;font-weight:800}.qris-code small{font-size:8px;word-break:break-all}.invoice{padding:18px;border:1px dashed #87bf99;border-radius:10px;background:#fff}.invoice__head,.invoice__total,.invoice li{display:flex;justify-content:space-between;gap:14px}.invoice__head span{font-size:11px;font-weight:800;letter-spacing:.12em;color:#43805a}.invoice__head h3{margin:4px 0;color:#174d32}.invoice ul{padding:0;margin:15px 0;list-style:none}.invoice li{padding:8px 0;border-bottom:1px solid #e5f4e8;font-size:13px}.invoice__total{padding-top:8px;font-size:16px;color:#174d32}.invoice>p{margin:12px 0;color:#5e7e68;font-size:12px}.payment-badge{height:max-content;padding:5px 8px;border-radius:999px;background:#fff0f7;color:#b22061;font-size:11px}.payment-badge.is-paid{background:#dff6e5;color:#17663a}@media(max-width:520px){.payment-instructions{align-items:flex-start}.qris-code{width:86px;height:86px;flex-basis:86px}}
 .qris-code--image{display:block;object-fit:contain;background:#fff;box-shadow:none}
+
+@media(max-width:680px){
+  .store-grid,.news-grid{grid-template-columns:1fr;gap:20px}
+  .store-card,.news-card{padding:18px;border-radius:16px}
+  .store-card img{height:170px;margin-bottom:14px}
+  .store-card h3,.news-card h3{font-size:1.12rem;line-height:1.3}
+  .store-card p,.news-card p{font-size:13px;line-height:1.6}
+  .store-card .button{min-height:46px;font-size:13px}
+  .cart-box{padding:16px}
+  .cart-row{grid-template-columns:52px minmax(0,1fr);gap:10px;padding:16px 0}
+  .cart-row>strong{grid-column:2;grid-row:2}
+  .cart-controls{grid-column:2;grid-row:3}
+}
