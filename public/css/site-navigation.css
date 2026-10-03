@@ -2,6 +2,7 @@
 .menu-toggle{order:3}
 .main-nav{align-items:center;gap:clamp(16px,2vw,28px);margin-left:auto}
 .main-nav>a{white-space:nowrap}
+.main-nav>a[aria-current="page"]{color:#087333;text-decoration:underline;text-decoration-color:#ff1684;text-decoration-thickness:2px;text-underline-offset:6px}
 .main-nav .cart-nav{gap:7px;border-left:1px solid #dce9e3;padding-left:clamp(14px,2vw,24px);font-size:18px}
 .cart-nav b{font-size:11px}
 .main-nav .auth-actions{margin-left:0}
@@ -21,6 +22,7 @@
 .button--nav .wa-icon{width:18px;height:18px;flex-basis:18px}
 .main-nav .auth-actions .auth-link{padding:9px 12px}
 .main-nav .auth-actions .auth-link--solid{border-radius:8px}
+[data-section-panel][hidden]{display:none!important}
 @media(max-width:1170px){
   .header__inner{gap:12px}
   .menu-toggle{order:3}

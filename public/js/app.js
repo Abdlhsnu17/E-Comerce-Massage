@@ -340,6 +340,32 @@ function setupNavigation() {
     if (event.key === "Escape") close();
   });
 }
+function setupSectionPanels() {
+  const sections = [...document.querySelectorAll("[data-section-panel]")];
+  const links = [...document.querySelectorAll(".main-nav a[href^='#']")];
+  const showPanelForHash = hash => {
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    const activePanel = target?.closest("[data-section-panel]")?.dataset.sectionPanel || "";
+    sections.forEach(section => { section.hidden = section.dataset.sectionPanel !== activePanel; });
+    links.forEach(link => {
+      const linkTarget = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+      const linkPanel = linkTarget?.closest("[data-section-panel]")?.dataset.sectionPanel;
+      if (linkPanel && linkPanel === activePanel) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  };
+
+  document.addEventListener("click", event => {
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest("a[href^='#']");
+    if (link) showPanelForHash(link.hash);
+  });
+  window.addEventListener("hashchange", () => showPanelForHash(window.location.hash));
+  showPanelForHash(window.location.hash);
+  if (window.location.hash) {
+    document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
+  }
+}
 function setupBackToTop() {
   const button = document.querySelector("#back-to-top");
   if (!button) return;
@@ -348,4 +374,4 @@ function setupBackToTop() {
   window.addEventListener("scroll", updateVisibility, { passive: true });
   updateVisibility();
 }
-document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupBackToTop(); });
+document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupSectionPanels(); setupBackToTop(); });
