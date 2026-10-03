@@ -298,6 +298,7 @@ function setupNavigation() {
   const toggle = document.querySelector(".menu-toggle");
   const nav = document.querySelector(".main-nav");
   const backdrop = document.querySelector(".nav-backdrop");
+  const closeButton = document.querySelector("#mobile-nav-close");
   const accountToggle = document.querySelector("#user-menu-toggle");
   const accountDropdown = document.querySelector("#user-menu-dropdown");
   if (!toggle || !nav || !backdrop || !accountToggle || !accountDropdown) return;
@@ -323,6 +324,7 @@ function setupNavigation() {
   };
 
   toggle.addEventListener("click", () => nav.classList.contains("is-open") ? close() : open());
+  closeButton?.addEventListener("click", close);
   accountToggle.addEventListener("click", event => {
     event.stopPropagation();
     const isOpen = !accountDropdown.hidden;
@@ -338,4 +340,12 @@ function setupNavigation() {
     if (event.key === "Escape") close();
   });
 }
-document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); });
+function setupBackToTop() {
+  const button = document.querySelector("#back-to-top");
+  if (!button) return;
+  const updateVisibility = () => { button.hidden = window.scrollY < 420; };
+  button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  window.addEventListener("scroll", updateVisibility, { passive: true });
+  updateVisibility();
+}
+document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupBackToTop(); });
