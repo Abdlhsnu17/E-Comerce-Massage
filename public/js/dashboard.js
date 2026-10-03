@@ -67,6 +67,7 @@ function renderMetrics(stats) {
 }
 
 function renderOrders(orders) {
+  window.invoiceExports.register(orders);
   document.querySelector("#order-count").textContent = `${orders.length} pesanan`;
   document.querySelector("#orders-empty").hidden = orders.length > 0;
   document.querySelector("#orders-table").innerHTML = orders.slice(0, 20).map(order => {
@@ -76,7 +77,7 @@ function renderOrders(orders) {
     const appointmentOptions = appointmentStatuses.map(status => `<option value="${status}" ${order.appointmentStatus === status ? "selected" : ""}>${status}</option>`).join("");
     const date = order.appointmentDate ? new Date(`${String(order.appointmentDate).slice(0, 10)}T00:00:00`).toLocaleDateString("id-ID", { dateStyle: "medium" }) : "Belum dijadwalkan";
     const location = order.serviceLocation === "home" ? "Kunjungan rumah" : "Studio";
-    return `<tr><td>${dashboardEsc(order.orderCode)}</td><td>${dashboardEsc(order.customerName || order.recipientName)}</td><td>${services}</td><td>${dashboardEsc(date)} ${dashboardEsc(order.appointmentTime || "")}</td><td>${location}</td><td>${dashboardMoney(order.total)}</td><td><select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}">${orderOptions}</select></td><td><select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}">${appointmentOptions}</select></td><td><select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}">${paymentOptions}</select></td></tr>`;
+      return `<tr><td>${dashboardEsc(order.orderCode)}</td><td>${dashboardEsc(order.customerName || order.recipientName)}</td><td>${services}</td><td>${dashboardEsc(date)} ${dashboardEsc(order.appointmentTime || "")}</td><td>${location}</td><td>${dashboardMoney(order.total)}</td><td>${window.invoiceExports.actions(order.id)}</td><td><select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}">${orderOptions}</select></td><td><select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}">${appointmentOptions}</select></td><td><select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}">${paymentOptions}</select></td></tr>`;
   }).join("");
 }
 

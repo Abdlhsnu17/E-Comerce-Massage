@@ -31,7 +31,9 @@ const api = {
   requestPasswordReset: body => api.request("/auth/password-reset", { method: "POST", body: JSON.stringify(body) }),
   resetPassword: body => api.request("/auth/password-reset/confirm", { method: "POST", body: JSON.stringify(body) }),
   logout: () => api.request("/auth/logout", { method: "POST" }),
+  orders: () => api.request("/orders"),
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
+  confirmPayment: orderId => api.request(`/orders/${orderId}/payment`, { method: "PATCH" }),
   admin: {
     stats: () => api.request("/admin/stats"),
     orders: () => api.request("/admin/orders"),

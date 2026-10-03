@@ -43,7 +43,7 @@ async function getStats(_req, res, next) {
          (SELECT COUNT(*) FROM orders WHERE status = 'Sedang diproses')  AS pendingOrders,
          (SELECT COUNT(*) FROM orders WHERE payment_status = 'Menunggu pembayaran') AS pendingPayments,
          (SELECT COALESCE(SUM(total), 0) FROM orders
-           WHERE status <> 'Dibatalkan')                                 AS revenue,
+           WHERE status <> 'Dibatalkan' AND payment_status = 'Dibayar')  AS revenue,
          (SELECT COUNT(*) FROM newsletter_subscribers)                   AS subscribers`
     );
 
@@ -57,7 +57,9 @@ async function getStats(_req, res, next) {
               SUM(oi.quantity)   AS terjual,
               SUM(oi.line_total) AS pendapatan
          FROM order_items oi
-         JOIN orders o ON o.id = oi.order_id AND o.status <> 'Dibatalkan'
+         JOIN orders o ON o.id = oi.order_id
+                      AND o.status <> 'Dibatalkan'
+                      AND o.payment_status = 'Dibayar'
         GROUP BY oi.product_name
         ORDER BY terjual DESC
         LIMIT 5`
@@ -146,6 +148,7 @@ async function updatePaymentStatus(req, res, next) {
     }
     const [result] = await pool.query("UPDATE orders SET payment_status = ? WHERE id = ?", [status, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    await completeOrderWhenReady(req.params.id);
     res.json({ id: Number(req.params.id), paymentStatus: status });
   } catch (error) {
     next(error);
@@ -160,10 +163,27 @@ async function updateAppointmentStatus(req, res, next) {
     }
     const [result] = await pool.query("UPDATE orders SET appointment_status = ? WHERE id = ?", [status, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    await completeOrderWhenReady(req.params.id);
     res.json({ id: Number(req.params.id), appointmentStatus: status });
   } catch (error) {
     next(error);
   }
+}
+
+/**
+ * Pesanan hanya tuntas setelah pembayaran dan sesi benar-benar selesai.
+ * Pesanan yang dibatalkan sengaja tidak boleh diaktifkan kembali otomatis.
+ */
+async function completeOrderWhenReady(orderId) {
+  await pool.query(
+    `UPDATE orders
+        SET status = 'Selesai'
+      WHERE id = ?
+        AND payment_status = 'Dibayar'
+        AND appointment_status = 'Selesai'
+        AND status <> 'Dibatalkan'`,
+    [orderId]
+  );
 }
 
 // ------------------------------------------------------------------ produk

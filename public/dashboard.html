@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/baby-massage.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/invoice-exports.css" />
 </head>
 <body class="dashboard-page">
   <header class="dashboard-header">
@@ -27,7 +28,7 @@
       <div id="ringkasan"><div class="metric-grid" id="metric-grid"></div></div>
       <section id="pesanan" class="dashboard-section">
         <div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Aktivitas</span><h2>Pesanan terbaru</h2></div><span id="order-count" class="section-count"></span></div>
-        <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Pelanggan</th><th>Layanan</th><th>Jadwal</th><th>Lokasi</th><th>Total</th><th>Status pesanan</th><th>Status sesi</th><th>Pembayaran</th></tr></thead><tbody id="orders-table"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Pelanggan</th><th>Layanan</th><th>Jadwal</th><th>Lokasi</th><th>Total</th><th>Invoice</th><th>Status pesanan</th><th>Status sesi</th><th>Pembayaran</th></tr></thead><tbody id="orders-table"></tbody></table></div>
         <p class="empty-message" id="orders-empty" hidden>Belum ada pesanan.</p>
       </section>
       <section id="layanan" class="dashboard-section">
@@ -59,6 +60,7 @@
     <section id="access-message" class="access-message" hidden><span class="eyebrow"><i></i> Akses admin</span><h2 id="access-title">Dashboard hanya untuk admin.</h2><p id="access-copy">Masuk menggunakan akun admin untuk melihat data pengelolaan.</p><a class="button button--primary" href="/?login=1">Masuk ke akun</a></section>
   </main>
   <script src="js/api.js"></script>
+  <script src="js/invoice-exports.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>

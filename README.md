@@ -71,6 +71,12 @@ SMTP_SECURE=false
 SMTP_USER=username
 SMTP_PASS=password-aplikasi-atau-api-key
 MAIL_FROM="Aera Baby Spa <no-reply@example.com>"
+# Instruksi pembayaran yang tampil pada checkout/riwayat
+BANK_NAME=BCA
+BANK_ACCOUNT_NUMBER=1234567890
+BANK_ACCOUNT_HOLDER="Aera Baby Spa"
+# URL publik gambar QRIS merchant yang aktif (PNG/JPG); kosong memakai tampilan penanda QRIS.
+QRIS_IMAGE_URL=https://domain-anda/assets/img/qris-merchant.png
 ```
 
 ## Menjalankan aplikasi
@@ -193,6 +199,7 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | DELETE | `/api/cart/items/:productId` | Hapus item |
 | GET | `/api/orders` | Riwayat pesanan user |
 | POST | `/api/orders` | Buat pesanan baru |
+| PATCH | `/api/orders/:id/payment` | Konfirmasi pembayaran QRIS/transfer oleh pelanggan |
 | GET | `/api/favorites` | Daftar wishlist |
 | POST | `/api/favorites/:productId` | Tambah atau hapus favorit |
 | POST | `/api/newsletter` | Daftar newsletter |
@@ -210,7 +217,7 @@ Berikut endpoint penting yang tersedia di aplikasi:
 - Saat user login, keranjang tamu akan dicatat dan dipindahkan ke akun tersebut.
 - Harga, ongkir, dan ketersediaan dihitung di server sebelum order dibuat.
 - Jadwal layanan memerlukan konfirmasi admin sebelum status sesi diperbarui.
-- Pembayaran saat ini dicatat secara manual; belum terhubung ke gateway pembayaran pihak ketiga.
+- QRIS dan transfer menampilkan instruksi pembayaran serta invoice setelah dikonfirmasi. Untuk status otomatis yang benar-benar berasal dari scan/transfer, sambungkan webhook payment gateway yang tervalidasi; tombol konfirmasi pelanggan bukan pengganti webhook produksi.
 
 ## Catatan penting
 

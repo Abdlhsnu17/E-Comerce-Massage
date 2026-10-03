@@ -2,8 +2,15 @@ const { pool } = require("../config/db");
 const { findOrCreateCart } = require("./cartController");
 
 const SHIPPING_COST = { regular: 0, express: 0 };
-const PAYMENT_METHODS = ["QRIS", "Virtual Account", "Kartu Debit/Kredit"];
+const PAYMENT_METHODS = ["QRIS", "Transfer Bank", "Tunai"];
 const SERVICE_LOCATIONS = ["studio", "home"];
+const PAYMENT_DETAILS = Object.freeze({
+  bankName: process.env.BANK_NAME || "BCA",
+  bankAccountNumber: process.env.BANK_ACCOUNT_NUMBER || "1234567890",
+  bankAccountHolder: process.env.BANK_ACCOUNT_HOLDER || "Aera Baby Spa",
+  // URL gambar QRIS merchant yang diterbitkan penyedia pembayaran.
+  qrisImageUrl: process.env.QRIS_IMAGE_URL || ""
+});
 
 // Dilempar dari dalam transaksi supaya rollback selalu jalan sebelum dibalas ke klien.
 class HttpError extends Error {
@@ -119,7 +126,8 @@ async function createOrder(req, res, next) {
       appointmentStatus: "Menunggu konfirmasi",
       appointmentDate,
       appointmentTime,
-      serviceLocation
+      serviceLocation,
+      paymentDetails: PAYMENT_DETAILS
     });
   } catch (error) {
     await connection.rollback();
@@ -127,6 +135,45 @@ async function createOrder(req, res, next) {
     next(error);
   } finally {
     connection.release();
+  }
+}
+
+/**
+ * Konfirmasi ini dipakai untuk alur pembayaran manual di aplikasi.
+ * Pada integrasi gateway produksi, status harus diubah webhook terverifikasi,
+ * bukan berdasarkan tombol pelanggan.
+ */
+async function confirmPayment(req, res, next) {
+  try {
+    const [orders] = await pool.query(
+      `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
+              payment_status AS paymentStatus
+         FROM orders WHERE id = ? AND user_id = ?`,
+      [req.params.id, req.user.id]
+    );
+    const order = orders[0];
+    if (!order) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    if (order.paymentMethod === "Tunai") {
+      return res.status(400).json({ message: "Pembayaran tunai dikonfirmasi petugas saat sesi berlangsung." });
+    }
+    if (order.paymentStatus === "Dibayar") return res.json({ ...order, message: "Pembayaran sudah berhasil dikonfirmasi." });
+    if (order.paymentStatus !== "Menunggu pembayaran") {
+      return res.status(409).json({ message: `Pembayaran tidak dapat dikonfirmasi karena statusnya ${order.paymentStatus}.` });
+    }
+
+    await pool.query("UPDATE orders SET payment_status = 'Dibayar' WHERE id = ?", [order.id]);
+    await pool.query(
+      `UPDATE orders
+          SET status = 'Selesai'
+        WHERE id = ?
+          AND payment_status = 'Dibayar'
+          AND appointment_status = 'Selesai'
+          AND status <> 'Dibatalkan'`,
+      [order.id]
+    );
+    res.json({ ...order, paymentStatus: "Dibayar", message: "Pembayaran berhasil. Invoice siap ditampilkan." });
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -153,10 +200,10 @@ async function listOrders(req, res, next) {
 
     const grouped = new Map(orders.map(order => [order.id, { ...order, items: [] }]));
     items.forEach(item => grouped.get(item.orderId)?.items.push(item));
-    res.json([...grouped.values()]);
+    res.json([...grouped.values()].map(order => ({ ...order, paymentDetails: PAYMENT_DETAILS })));
   } catch (error) {
     next(error);
   }
 }
 
-module.exports = { createOrder, listOrders, SHIPPING_COST };
+module.exports = { createOrder, listOrders, confirmPayment, SHIPPING_COST };

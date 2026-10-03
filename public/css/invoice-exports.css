@@ -1,0 +1,5 @@
+.invoice-export-actions{display:flex;flex-wrap:wrap;gap:8px}
+.invoice-export-actions button{padding:6px 10px;border:1px solid #87bf99;border-radius:7px;background:#fff;color:#17663a;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.invoice-export-actions button:hover{background:#effcf1}
+.invoice-export-actions button:focus-visible{outline:2px solid #17663a;outline-offset:2px}
+.dashboard-section .invoice-export-actions{white-space:nowrap}

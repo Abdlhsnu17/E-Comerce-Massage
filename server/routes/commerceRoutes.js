@@ -1,6 +1,6 @@
 const express = require("express");
 const { getCart, addItem, updateItem, removeItem } = require("../controllers/cartController");
-const { createOrder, listOrders } = require("../controllers/orderController");
+const { createOrder, listOrders, confirmPayment } = require("../controllers/orderController");
 const { listFavorites, toggleFavorite, subscribeNewsletter } = require("../controllers/favoriteController");
 const { requireAuth } = require("../middleware/auth");
 
@@ -12,6 +12,7 @@ router.patch("/cart/items/:productId", updateItem);
 router.delete("/cart/items/:productId", removeItem);
 router.get("/orders", requireAuth, listOrders);
 router.post("/orders", requireAuth, createOrder);
+router.patch("/orders/:id/payment", requireAuth, confirmPayment);
 router.get("/favorites", listFavorites);
 router.post("/favorites/:productId", toggleFavorite);
 router.post("/newsletter", subscribeNewsletter);

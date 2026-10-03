@@ -176,7 +176,7 @@ CREATE TABLE orders (
   shipping_cost     DECIMAL(12, 2) NOT NULL DEFAULT 0,
   total             DECIMAL(12, 2) NOT NULL,
   shipping_method   ENUM('regular','express') NOT NULL DEFAULT 'regular',
-  payment_method    ENUM('QRIS','Virtual Account','Kartu Debit/Kredit') NOT NULL,
+  payment_method    ENUM('QRIS','Transfer Bank','Tunai') NOT NULL,
   payment_status   ENUM('Menunggu pembayaran','Dibayar','Gagal','Dibatalkan') NOT NULL DEFAULT 'Menunggu pembayaran',
   appointment_date DATE           NULL,
   appointment_time TIME           NULL,

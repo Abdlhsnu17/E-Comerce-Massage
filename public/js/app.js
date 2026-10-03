@@ -134,6 +134,50 @@ async function loadStore() {
   }
 }
 
+function paymentInstructions(order) {
+  if (order.paymentMethod === "QRIS") {
+    const hasQrisImage = Boolean(order.paymentDetails?.qrisImageUrl);
+    const qrisImage = hasQrisImage ? `<img class="qris-code qris-code--image" src="${esc(order.paymentDetails.qrisImageUrl)}" alt="Barcode QRIS Aera Baby Spa">` : `<div class="qris-code" aria-label="Penanda QRIS belum dikonfigurasi"><span>QRIS</span><small>Belum diatur</small></div>`;
+    const message = hasQrisImage ? "Scan barcode QRIS Aera Baby Spa dengan aplikasi pembayaran Anda." : "Barcode QRIS merchant belum dikonfigurasi. Hubungi petugas untuk pembayaran QRIS.";
+    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Scan barcode QRIS</strong><p>${message} Nominal: <b>${rupiah(order.total)}</b>.</p></div></div>`;
+  }
+  if (order.paymentMethod === "Transfer Bank") {
+    const details = order.paymentDetails || {};
+    return `<div class="payment-instructions"><div><strong>Transfer Bank ${esc(details.bankName || "BCA")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "1234567890")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "Aera Baby Spa")}</b><br>Nominal transfer: <b>${rupiah(order.total)}</b></p></div></div>`;
+  }
+  return `<div class="payment-instructions"><div><strong>Bayar tunai</strong><p>Siapkan <b>${rupiah(order.total)}</b> dan lakukan pembayaran kepada petugas saat sesi berlangsung.</p></div></div>`;
+}
+
+function invoiceMarkup(order) {
+  const items = (order.items || []).map(item => `<li><span>${esc(item.name)} × ${Number(item.qty)}</span><b>${rupiah(item.lineTotal ?? item.price * item.qty)}</b></li>`).join("");
+  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>INVOICE</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${window.invoiceExports.actions(order.id)}</article>`;
+}
+
+async function renderOrderHistory() {
+  const history = document.querySelector("#riwayat");
+  if (!history) return;
+  if (!currentUser) { history.hidden = true; return; }
+  try {
+    const orders = await api.orders();
+    window.invoiceExports.register(orders.map(order => ({
+      ...order,
+      recipientName: order.recipientName || currentUser.name,
+      recipientEmail: order.recipientEmail || currentUser.email
+    })));
+    history.hidden = false;
+    history.innerHTML = `<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? `${paymentInstructions(order)}${order.paymentMethod !== "Tunai" ? `<button class="button button--primary confirm-payment" type="button" data-payment-id="${Number(order.id)}">Saya sudah bayar</button>` : ""}` : invoiceMarkup(order)}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
+    history.querySelectorAll(".confirm-payment").forEach(button => button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Memeriksa pembayaran…";
+      try { await api.confirmPayment(button.dataset.paymentId); await renderOrderHistory(); }
+      catch (error) { alert(error.message); button.disabled = false; button.textContent = "Saya sudah bayar"; }
+    }));
+  } catch (error) {
+    history.hidden = false;
+    history.innerHTML = `<p class="store-muted">${esc(error.message)}</p>`;
+  }
+}
+
 async function renderCart() {
   try {
     const cart = await api.cart();
@@ -141,10 +185,11 @@ async function renderCart() {
     document.querySelector("#cart-count").textContent = cart.totalQty || 0;
     if (!cart.items?.length) {
       el.innerHTML = '<p class="store-muted">Keranjang kosong.</p>';
+      await renderOrderHistory();
       return;
     }
 
-    el.innerHTML = `${cart.items.map(item => `<div class="cart-row"><span>${esc(item.name)}<small>${rupiah(item.price)} per sesi</small></span><strong>${rupiah(item.price * item.qty)}</strong><div class="cart-controls"><button class="cart-minus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Kurangi jumlah ${esc(item.name)}">−</button><b>${item.qty}</b><button class="cart-plus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Tambah jumlah ${esc(item.name)}">+</button><button class="cart-remove" data-id="${item.id}" type="button">Hapus</button></div></div>`).join("")}<div class="cart-total"><span>Total layanan</span><strong>${rupiah(cart.subtotal)}</strong></div>${currentUser ? `<form id="checkout-form" class="checkout-form"><h3>Data pemesan</h3><input name="recipientName" placeholder="Nama orang tua" autocomplete="name" required><input name="recipientEmail" type="email" placeholder="Email" autocomplete="email" required><input name="recipientPhone" type="tel" placeholder="Nomor WhatsApp"><textarea name="address" placeholder="Alamat lengkap" required></textarea><select name="shippingMethod"><option value="regular">Sesi di lokasi layanan</option><option value="express">Kunjungan ke rumah</option></select><label>Metode pembayaran<select name="paymentMethod" required><option value="">Pilih metode pembayaran</option><option value="QRIS">QRIS</option><option value="Virtual Account">Virtual Account</option><option value="Kartu Debit/Kredit">Kartu debit/kredit</option></select></label><p class="payment-note">Total hanya mencakup tarif sesi. Biaya dan jadwal kunjungan rumah, serta pembayaran, dikonfirmasi manual melalui WhatsApp; belum ada payment gateway.</p><button class="button button--primary" type="submit">Buat pesanan</button><p id="checkout-message" class="store-muted" role="status" aria-live="polite"></p></form>` : `<div class="checkout-required"><p>Masuk atau daftar untuk melanjutkan pemesanan.</p><button id="checkout-login" class="button button--primary" type="button">Masuk untuk checkout</button></div>`}`;
+    el.innerHTML = `${cart.items.map(item => `<div class="cart-row"><span>${esc(item.name)}<small>${rupiah(item.price)} per sesi</small></span><strong>${rupiah(item.price * item.qty)}</strong><div class="cart-controls"><button class="cart-minus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Kurangi jumlah ${esc(item.name)}">−</button><b>${item.qty}</b><button class="cart-plus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Tambah jumlah ${esc(item.name)}">+</button><button class="cart-remove" data-id="${item.id}" type="button">Hapus</button></div></div>`).join("")}<div class="cart-total"><span>Total layanan</span><strong>${rupiah(cart.subtotal)}</strong></div>${currentUser ? `<form id="checkout-form" class="checkout-form"><h3>Data pemesan</h3><input name="recipientName" placeholder="Nama orang tua" autocomplete="name" required><input name="recipientEmail" type="email" placeholder="Email" autocomplete="email" required><input name="recipientPhone" type="tel" placeholder="Nomor WhatsApp"><textarea name="address" placeholder="Alamat lengkap" required></textarea><select name="shippingMethod"><option value="regular">Sesi di lokasi layanan</option><option value="express">Kunjungan ke rumah</option></select><label>Metode pembayaran<select name="paymentMethod" required><option value="">Pilih metode pembayaran</option><option value="QRIS">QRIS</option><option value="Transfer Bank">Transfer bank</option><option value="Tunai">Tunai saat sesi</option></select></label><p class="payment-note">Setelah pesanan dibuat, instruksi QRIS/transfer akan tampil di riwayat pembayaran. Pembayaran tunai dilakukan kepada petugas saat sesi.</p><button class="button button--primary" type="submit">Buat pesanan</button><p id="checkout-message" class="store-muted" role="status" aria-live="polite"></p></form>` : `<div class="checkout-required"><p>Masuk atau daftar untuk melanjutkan pemesanan.</p><button id="checkout-login" class="button button--primary" type="button">Masuk untuk checkout</button></div>`}`;
 
     el.querySelectorAll(".cart-minus, .cart-plus").forEach(button => button.addEventListener("click", async () => {
       const change = button.classList.contains("cart-plus") ? 1 : -1;
@@ -192,10 +237,11 @@ async function renderCart() {
       try {
         const order = await api.createOrder(Object.fromEntries(new FormData(form)));
         await renderCart();
+        await renderOrderHistory();
         const confirmation = document.createElement("p");
         confirmation.className = "order-confirmation";
         confirmation.setAttribute("role", "status");
-        confirmation.innerHTML = `Permintaan sesi <strong>${esc(order.orderCode)}</strong> untuk ${esc(order.appointmentDate)} pukul ${esc(order.appointmentTime)} tercatat. Jadwal menunggu konfirmasi dan pembayaran dilakukan manual. <a href="https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Konfirmasi sesi ${order.orderCode} pada ${order.appointmentDate} pukul ${order.appointmentTime}`)}" target="_blank" rel="noopener">Konfirmasi melalui WhatsApp</a>.`;
+        confirmation.innerHTML = `Pesanan <strong>${esc(order.orderCode)}</strong> berhasil dibuat. Lanjutkan pembayaran pada bagian riwayat di bawah; invoice akan langsung tersedia setelah status pembayaran berhasil.`;
         el.prepend(confirmation);
       } catch (error) {
         message.textContent = error.message;
@@ -227,5 +273,69 @@ function setupAuth() {
   api.me().then(showUser).catch(() => {});
   const query = new URLSearchParams(location.search); if (query.has("reset")) openReset(); else if (query.has("login")) open("login");
 }
-function showUser(user){currentUser=user;const menu=document.querySelector("#user-menu");document.querySelector("#login-open").hidden=true;document.querySelector("#register-open").hidden=true;menu.hidden=false;menu.innerHTML=`Halo, ${esc(user.name)} ${user.role==="admin"?'<a class="auth-link dashboard-link" href="/dashboard.html">Dashboard</a>':""} <button id="logout-btn" class="auth-link">Keluar</button>`;document.querySelector("#logout-btn").onclick=async()=>{await api.logout();currentUser=null;location.reload();};renderCart();}
-document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); });
+function showUser(user) {
+  currentUser = user;
+  document.querySelector("#login-open").hidden = true;
+  document.querySelector("#register-open").hidden = true;
+  const menu = document.querySelector("#user-menu");
+  menu.hidden = false;
+  document.querySelector("#user-menu-greeting").textContent = `Halo, ${user.name}`;
+  const dropdown = document.querySelector("#user-menu-dropdown");
+  dropdown.innerHTML = `${user.role === "admin" ? '<a href="/dashboard.html">Dashboard</a>' : ""}<a href="#riwayat">Transaksi Saya</a><button id="logout-btn" type="button">Keluar</button>`;
+  document.querySelector("#logout-btn").addEventListener("click", async () => {
+    try {
+      await api.logout();
+      currentUser = null;
+      location.reload();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+  renderCart();
+}
+
+function setupNavigation() {
+  const toggle = document.querySelector(".menu-toggle");
+  const nav = document.querySelector(".main-nav");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const accountToggle = document.querySelector("#user-menu-toggle");
+  const accountDropdown = document.querySelector("#user-menu-dropdown");
+  if (!toggle || !nav || !backdrop || !accountToggle || !accountDropdown) return;
+
+  const closeAccountMenu = () => {
+    accountDropdown.hidden = true;
+    accountToggle.setAttribute("aria-expanded", "false");
+  };
+  const close = () => {
+    nav.classList.remove("is-open");
+    backdrop.classList.remove("is-open");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Buka menu");
+    document.body.classList.remove("nav-open");
+    closeAccountMenu();
+  };
+  const open = () => {
+    nav.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.setAttribute("aria-label", "Tutup menu");
+    document.body.classList.add("nav-open");
+  };
+
+  toggle.addEventListener("click", () => nav.classList.contains("is-open") ? close() : open());
+  accountToggle.addEventListener("click", event => {
+    event.stopPropagation();
+    const isOpen = !accountDropdown.hidden;
+    accountDropdown.hidden = isOpen;
+    accountToggle.setAttribute("aria-expanded", String(!isOpen));
+  });
+  backdrop.addEventListener("click", close);
+  nav.querySelectorAll("a").forEach(link => link.addEventListener("click", close));
+  document.addEventListener("click", event => {
+    if (!event.target.closest("#user-menu")) closeAccountMenu();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") close();
+  });
+}
+document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); });
