@@ -47,6 +47,7 @@ const serviceImagePreview = document.querySelector("#service-image-preview");
 const dashboardIcons = {
   add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.8 7.2 3 3"/></svg>',
+  key: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M16 7l2 2M14 9l2 2"/></svg>',
   delete: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v5M14 11v5M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg>'
 };
 
@@ -104,7 +105,10 @@ function renderUsers(users) {
     const roleControl = Number(user.id) === currentAdminId
       ? '<span class="role-badge">Admin (Anda)</span>'
       : `<select data-user-role="${Number(user.id)}" aria-label="Peran ${dashboardEsc(user.name)}"><option value="user" ${user.role === "user" ? "selected" : ""}>Pengguna</option><option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option></select>`;
-    return `<tr><td>${dashboardEsc(user.name)}</td><td>${dashboardEsc(user.email)}</td><td>${dashboardEsc(user.phone || "-")}</td><td>${roleControl}</td><td>${Number(user.totalOrders) || 0}</td><td>${dashboardEsc(registeredAt)}</td></tr>`;
+    const editButton = dashboardIconButton("edit", `Edit akun ${dashboardEsc(user.name)}`, "data-user-edit", user.id);
+    const passwordButton = dashboardIconButton("key", `Ganti password ${dashboardEsc(user.name)}`, "data-user-password", user.id);
+    const deleteButton = Number(user.id) === currentAdminId ? "" : dashboardIconButton("delete", `Hapus akun ${dashboardEsc(user.name)}`, "data-user-delete", user.id, true);
+    return `<tr><td>${dashboardEsc(user.name)}</td><td>${dashboardEsc(user.email)}</td><td>${dashboardEsc(user.phone || "-")}</td><td>${roleControl}</td><td>${Number(user.totalOrders) || 0}</td><td>${dashboardEsc(registeredAt)}</td><td class="table-actions">${editButton}${passwordButton}${deleteButton}</td></tr>`;
   }).join("");
 }
 
@@ -251,30 +255,46 @@ document.querySelector("#password-form").addEventListener("submit", async event 
   }
 });
 const userForm = document.querySelector("#user-form");
-document.querySelector("#add-user-button").addEventListener("click", () => {
+function openUserForm(user = null) {
   userForm.reset();
+  userForm.elements.id.value = user?.id || "";
+  userForm.elements.name.value = user?.name || "";
+  userForm.elements.email.value = user?.email || "";
+  userForm.elements.phone.value = user?.phone || "";
+  userForm.elements.role.value = user?.role || "user";
+  const editing = !!user;
+  document.querySelector("#user-form-title").textContent = editing ? `Edit akun ${user.name}` : "Tambah akun baru";
+  document.querySelector("#save-user-button").textContent = editing ? "Simpan perubahan" : "Buat akun";
+  ["#user-role-field", "#user-password-field", "#user-password-confirm-field"].forEach(selector => { document.querySelector(selector).hidden = editing; });
+  userForm.elements.role.disabled = editing;
+  userForm.elements.password.disabled = editing;
+  userForm.elements.confirmPassword.disabled = editing;
   document.querySelector("#user-form-message").textContent = "";
   userForm.hidden = false;
   userForm.elements.name.focus();
-});
+  userForm.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+document.querySelector("#add-user-button").addEventListener("click", () => openUserForm());
 document.querySelector("#cancel-user").addEventListener("click", () => { userForm.hidden = true; });
 userForm.addEventListener("submit", async event => {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(userForm));
   const message = document.querySelector("#user-form-message");
-  if (values.password !== values.confirmPassword) {
+  if (!values.id && values.password !== values.confirmPassword) {
     message.textContent = "Konfirmasi password tidak sama.";
     return;
   }
   const button = document.querySelector("#save-user-button");
   button.disabled = true;
-  message.textContent = "Membuat akun…";
+  message.textContent = values.id ? "Menyimpan perubahan…" : "Membuat akun…";
   try {
-    await api.admin.createUser({ name: values.name.trim(), email: values.email.trim(), phone: values.phone.trim(), role: values.role, password: values.password });
+    const payload = { name: values.name.trim(), email: values.email.trim(), phone: values.phone.trim() };
+    if (values.id) await api.admin.updateUser(values.id, payload);
+    else await api.admin.createUser({ ...payload, role: values.role, password: values.password });
     userForm.reset();
     userForm.hidden = true;
     renderUsers(await api.admin.users());
-    dashboardMessage.textContent = "Akun baru berhasil dibuat.";
+    dashboardMessage.textContent = values.id ? "Data akun berhasil diperbarui." : "Akun baru berhasil dibuat.";
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -294,6 +314,63 @@ document.querySelector("#users-table").addEventListener("change", async event =>
     select.value = previousRole || "user";
     select.disabled = false;
     dashboardMessage.textContent = error.message;
+  }
+});
+const userPasswordForm = document.querySelector("#user-password-form");
+document.querySelector("#users-table").addEventListener("click", event => {
+  const editButton = event.target.closest("[data-user-edit]");
+  const deleteButton = event.target.closest("[data-user-delete]");
+  if (editButton) {
+    const user = dashboardUsers.find(item => Number(item.id) === Number(editButton.dataset.userEdit));
+    if (user) openUserForm(user);
+    return;
+  }
+  if (deleteButton) {
+    const user = dashboardUsers.find(item => Number(item.id) === Number(deleteButton.dataset.userDelete));
+    if (!user || !window.confirm(`Hapus akun ${user.name}? Tindakan ini tidak dapat dibatalkan.`)) return;
+    deleteButton.disabled = true;
+    api.admin.deleteUser(user.id).then(async () => {
+      renderUsers(await api.admin.users());
+      dashboardMessage.textContent = "Akun berhasil dihapus.";
+    }).catch(error => {
+      dashboardMessage.textContent = error.message;
+      deleteButton.disabled = false;
+    });
+    return;
+  }
+  const button = event.target.closest("[data-user-password]");
+  if (!button) return;
+  const user = dashboardUsers.find(item => Number(item.id) === Number(button.dataset.userPassword));
+  if (!user) return;
+  userPasswordForm.reset();
+  userPasswordForm.elements.userId.value = user.id;
+  document.querySelector("#user-password-title").textContent = `Ganti password ${user.name}`;
+  document.querySelector("#user-password-message").textContent = "";
+  userPasswordForm.hidden = false;
+  userPasswordForm.elements.password.focus();
+  userPasswordForm.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+document.querySelector("#cancel-user-password").addEventListener("click", () => { userPasswordForm.hidden = true; });
+userPasswordForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const values = Object.fromEntries(new FormData(userPasswordForm));
+  const message = document.querySelector("#user-password-message");
+  if (values.password !== values.confirmPassword) {
+    message.textContent = "Konfirmasi password baru tidak sama.";
+    return;
+  }
+  const button = document.querySelector("#save-user-password");
+  button.disabled = true;
+  message.textContent = "Memperbarui password…";
+  try {
+    await api.admin.updateUserPassword(values.userId, values.password);
+    userPasswordForm.reset();
+    userPasswordForm.hidden = true;
+    dashboardMessage.textContent = "Password akun berhasil diperbarui.";
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
   }
 });
 document.querySelector("#add-service-button").addEventListener("click", () => openServiceEditor());

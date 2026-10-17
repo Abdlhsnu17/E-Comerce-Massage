@@ -359,6 +359,32 @@ async function createUser(req, res, next) {
   }
 }
 
+async function updateUser(req, res, next) {
+  try {
+    const targetId = Number(req.params.id);
+    const name = (req.body.name || "").trim();
+    const email = (req.body.email || "").trim().toLowerCase();
+    const phone = (req.body.phone || "").trim() || null;
+
+    if (!Number.isInteger(targetId) || targetId < 1 || !name || !email) {
+      return res.status(400).json({ message: "Nama dan email wajib diisi." });
+    }
+
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ? AND id <> ?", [email, targetId]);
+    if (existing.length) return res.status(409).json({ message: "Email sudah digunakan akun lain." });
+
+    const [result] = await pool.query(
+      "UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?",
+      [name, email, phone, targetId]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: "Akun tidak ditemukan." });
+
+    res.json({ id: targetId, message: "Data akun berhasil diperbarui." });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function updateUserRole(req, res, next) {
   try {
     const role = req.body.role;
@@ -391,6 +417,60 @@ async function updateUserRole(req, res, next) {
   }
 }
 
+async function updateUserPassword(req, res, next) {
+  try {
+    const targetId = Number(req.params.id);
+    const password = req.body.password || "";
+
+    if (!Number.isInteger(targetId) || targetId < 1) {
+      return res.status(400).json({ message: "ID akun tidak valid." });
+    }
+    if (password.length < 12) {
+      return res.status(400).json({ message: "Password baru minimal 12 karakter." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const [result] = await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, targetId]);
+    if (!result.affectedRows) return res.status(404).json({ message: "Akun tidak ditemukan." });
+
+    res.json({ id: targetId, message: "Password akun berhasil diperbarui." });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function deleteUser(req, res, next) {
+  try {
+    const targetId = Number(req.params.id);
+    if (!Number.isInteger(targetId) || targetId < 1) {
+      return res.status(400).json({ message: "ID akun tidak valid." });
+    }
+    if (targetId === req.user.id) {
+      return res.status(400).json({ message: "Kamu tidak bisa menghapus akunmu sendiri." });
+    }
+
+    const [targets] = await pool.query(
+      `SELECT u.role, COUNT(o.id) AS totalOrders
+         FROM users u LEFT JOIN orders o ON o.user_id = u.id
+        WHERE u.id = ? GROUP BY u.id, u.role`,
+      [targetId]
+    );
+    if (!targets.length) return res.status(404).json({ message: "Akun tidak ditemukan." });
+    if (Number(targets[0].totalOrders) > 0) {
+      return res.status(409).json({ message: "Akun yang memiliki riwayat pesanan tidak dapat dihapus." });
+    }
+    if (targets[0].role === "admin") {
+      const [[{ jumlah }]] = await pool.query("SELECT COUNT(*) AS jumlah FROM users WHERE role = 'admin'");
+      if (jumlah <= 1) return res.status(400).json({ message: "Minimal harus ada satu admin." });
+    }
+
+    await pool.query("DELETE FROM users WHERE id = ?", [targetId]);
+    res.json({ id: targetId, message: "Akun berhasil dihapus." });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getStats,
   listAllOrders,
@@ -404,6 +484,9 @@ module.exports = {
   deleteProduct,
   listUsers,
   createUser,
+  updateUser,
   updateUserRole,
+  updateUserPassword,
+  deleteUser,
   ORDER_STATUSES
 };

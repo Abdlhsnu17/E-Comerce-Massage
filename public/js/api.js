@@ -55,6 +55,9 @@ const api = {
     ,updateSiteContent: body => api.request("/admin/site-content", { method: "PATCH", body: JSON.stringify(body) })
     ,users: () => api.request("/admin/users")
     ,createUser: body => api.request("/admin/users", { method: "POST", body: JSON.stringify(body) })
+    ,updateUser: (id, body) => api.request(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(body) })
     ,updateUserRole: (id, role) => api.request(`/admin/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) })
+    ,updateUserPassword: (id, password) => api.request(`/admin/users/${id}/password`, { method: "PATCH", body: JSON.stringify({ password }) })
+    ,deleteUser: id => api.request(`/admin/users/${id}`, { method: "DELETE" })
   }
 };

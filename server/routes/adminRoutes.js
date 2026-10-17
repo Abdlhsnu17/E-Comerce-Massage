@@ -27,6 +27,9 @@ router.patch("/products/:id", admin.updateProduct);
 router.delete("/products/:id", admin.deleteProduct);
 router.get("/users", admin.listUsers);
 router.post("/users", admin.createUser);
+router.patch("/users/:id", admin.updateUser);
 router.patch("/users/:id/role", admin.updateUserRole);
+router.patch("/users/:id/password", admin.updateUserPassword);
+router.delete("/users/:id", admin.deleteUser);
 
 module.exports = router;
