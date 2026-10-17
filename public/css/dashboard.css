@@ -57,6 +57,7 @@
 .deactivate-product { color: #b65346; }
 .activate-product:disabled { cursor: not-allowed; opacity: .5; }
 .section-count { color: #71847c; font-size: 11px; }
+.role-badge { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border-radius: 999px; background: #effcf1; color: #287247; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .table-wrap { overflow-x: auto; border: 1px solid #d9e5de; border-radius: 16px; background: #fff; box-shadow: 0 8px 25px rgba(24,63,58,.045); }
 .dashboard-section table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
 .dashboard-section th { padding: 12px 14px; background: #eaf3ed; color: #536f66; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }

@@ -267,14 +267,17 @@ function setupAuth() {
   const modal = document.querySelector("#auth-modal"), form = document.querySelector("#auth-form"), title = document.querySelector("#auth-title");
   const name = document.querySelector("#auth-name"), nameLabel = document.querySelector("#auth-name-label"), msg = document.querySelector("#auth-message");
   const forgotForm = document.querySelector("#forgot-form"), resetForm = document.querySelector("#reset-form");
+  const passwordInput = document.querySelector("#auth-password"), passwordToggle = document.querySelector("#toggle-auth-password");
   let mode = "login";
   const showOnly = visible => [form, forgotForm, resetForm].forEach(item => item.hidden = item !== visible);
-  const open = m => { mode = m; title.textContent = m === "login" ? "Masuk" : "Daftar akun"; nameLabel.hidden = m === "login"; name.required = m !== "login"; name.disabled = m === "login"; form.password.minLength = m === "login" ? 6 : 12; form.reset(); msg.textContent = ""; showOnly(form); modal.hidden = false; };
+  const hidePassword = () => { passwordInput.type = "password"; passwordToggle.setAttribute("aria-pressed", "false"); passwordToggle.setAttribute("aria-label", "Lihat password"); };
+  const open = m => { mode = m; title.textContent = m === "login" ? "Masuk" : "Daftar akun"; nameLabel.hidden = m === "login"; name.required = m !== "login"; name.disabled = m === "login"; form.password.minLength = m === "login" ? 6 : 12; form.reset(); hidePassword(); msg.textContent = ""; showOnly(form); modal.hidden = false; };
   const openForgot = () => { title.textContent = "Lupa password"; forgotForm.reset(); forgotForm.querySelector("p").textContent = ""; showOnly(forgotForm); modal.hidden = false; };
   const openReset = () => { title.textContent = "Atur ulang password"; resetForm.reset(); resetForm.querySelector("p").textContent = ""; showOnly(resetForm); modal.hidden = false; };
   document.querySelector("#login-open").onclick = () => open("login");
   document.querySelector("#register-open").onclick = () => open("register");
   document.querySelector("#auth-close").onclick = () => modal.hidden = true;
+  passwordToggle.onclick = () => { const visible = passwordInput.type === "password"; passwordInput.type = visible ? "text" : "password"; passwordToggle.setAttribute("aria-pressed", String(visible)); passwordToggle.setAttribute("aria-label", visible ? "Sembunyikan password" : "Lihat password"); passwordInput.focus(); };
   document.querySelector("#forgot-password").onclick = openForgot;
   document.querySelectorAll(".back-to-login").forEach(button => button.onclick = () => open("login"));
   form.onsubmit = async event => { event.preventDefault(); msg.textContent = "Memproses…"; try { const response = mode === "login" ? await api.login(Object.fromEntries(new FormData(form))) : await api.register(Object.fromEntries(new FormData(form))); modal.hidden = true; showUser(response.user); } catch (error) { msg.textContent = error.message; } };

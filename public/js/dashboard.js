@@ -11,6 +11,11 @@ menuToggle.addEventListener("click", () => { const open = dashboardSidebar.class
 sidebarBackdrop.addEventListener("click", closeSidebar);
 dashboardSidebar.querySelectorAll(".sidebar-link").forEach(link => link.addEventListener("click", closeSidebar));
 document.addEventListener("keydown", event => { if (event.key === "Escape") closeSidebar(); });
+const usersSidebarLink = document.createElement("a");
+usersSidebarLink.className = "sidebar-link";
+usersSidebarLink.href = "#pengguna";
+usersSidebarLink.innerHTML = "◇ <span>Manajemen pengguna</span>";
+dashboardSidebar.insertBefore(usersSidebarLink, dashboardSidebar.lastElementChild);
 const sidebarLinks = [...dashboardSidebar.querySelectorAll(".sidebar-link")];
 const dashboardSections = sidebarLinks.map(link => document.querySelector(link.hash)).filter(Boolean);
 function switchDashboardTab(targetId) {
@@ -35,6 +40,8 @@ const accessMessage = document.querySelector("#access-message");
 const serviceForm = document.querySelector("#service-form");
 const serviceEditor = document.querySelector("#service-editor");
 let dashboardProducts = [];
+let dashboardUsers = [];
+let currentAdminId = null;
 let servicePreviewUrl = null;
 const serviceImagePreview = document.querySelector("#service-image-preview");
 const dashboardIcons = {
@@ -88,6 +95,19 @@ function renderServices(products) {
   document.querySelector("#services-table").innerHTML = products.slice(0, 50).map(product => `<tr><td>${dashboardEsc(product.name)}</td><td>${dashboardEsc(product.category)}</td><td>${Number(product.durationMinutes) || 0} menit</td><td>${dashboardMoney(product.price)}</td><td>${product.isActive ? "Aktif" : "Nonaktif"}</td><td class="table-actions">${dashboardIconButton("edit", `Edit layanan ${dashboardEsc(product.name)}`, "data-edit-service", product.id)}${dashboardIconButton("delete", `Hapus layanan ${dashboardEsc(product.name)}`, "data-delete-service", product.id, true)}</td></tr>`).join("");
 }
 
+function renderUsers(users) {
+  dashboardUsers = users;
+  document.querySelector("#user-count").textContent = `${users.length} akun`;
+  document.querySelector("#users-empty").hidden = users.length > 0;
+  document.querySelector("#users-table").innerHTML = users.map(user => {
+    const registeredAt = new Date(user.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" });
+    const roleControl = Number(user.id) === currentAdminId
+      ? '<span class="role-badge">Admin (Anda)</span>'
+      : `<select data-user-role="${Number(user.id)}" aria-label="Peran ${dashboardEsc(user.name)}"><option value="user" ${user.role === "user" ? "selected" : ""}>Pengguna</option><option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option></select>`;
+    return `<tr><td>${dashboardEsc(user.name)}</td><td>${dashboardEsc(user.email)}</td><td>${dashboardEsc(user.phone || "-")}</td><td>${roleControl}</td><td>${Number(user.totalOrders) || 0}</td><td>${dashboardEsc(registeredAt)}</td></tr>`;
+  }).join("");
+}
+
 function renderServiceCategories(categories) {
   const select = serviceForm.elements.categoryId;
   select.innerHTML = '<option value="">Pilih kategori</option>' + categories.map(category => `<option value="${Number(category.id)}">${dashboardEsc(category.name)}</option>`).join("");
@@ -116,11 +136,12 @@ function openServiceEditor(product = null) {
 async function refreshDashboard() {
   dashboardMessage.textContent = "Memuat data dashboard…";
   try {
-    const [stats, orders, products, categories, siteContent] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.categories(), api.admin.siteContent()]);
+    const [stats, orders, products, categories, siteContent, users] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.categories(), api.admin.siteContent(), api.admin.users()]);
     renderMetrics(stats);
     renderOrders(orders);
     renderServices(products);
     renderServiceCategories(categories);
+    renderUsers(users);
     Object.entries(siteContent).forEach(([name, value]) => {
       const field = document.querySelector(`#site-content-form [name="${name}"]`);
       if (field) field.value = value || "";
@@ -164,6 +185,7 @@ async function initDashboard() {
       return;
     }
     document.querySelector("#admin-name").textContent = user.name;
+    currentAdminId = Number(user.id);
     dashboardContent.hidden = false;
     await refreshDashboard();
   } catch {
@@ -226,6 +248,52 @@ document.querySelector("#password-form").addEventListener("submit", async event 
     message.textContent = "Password berhasil diperbarui.";
   } catch (error) {
     message.textContent = error.message;
+  }
+});
+const userForm = document.querySelector("#user-form");
+document.querySelector("#add-user-button").addEventListener("click", () => {
+  userForm.reset();
+  document.querySelector("#user-form-message").textContent = "";
+  userForm.hidden = false;
+  userForm.elements.name.focus();
+});
+document.querySelector("#cancel-user").addEventListener("click", () => { userForm.hidden = true; });
+userForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const values = Object.fromEntries(new FormData(userForm));
+  const message = document.querySelector("#user-form-message");
+  if (values.password !== values.confirmPassword) {
+    message.textContent = "Konfirmasi password tidak sama.";
+    return;
+  }
+  const button = document.querySelector("#save-user-button");
+  button.disabled = true;
+  message.textContent = "Membuat akun…";
+  try {
+    await api.admin.createUser({ name: values.name.trim(), email: values.email.trim(), phone: values.phone.trim(), role: values.role, password: values.password });
+    userForm.reset();
+    userForm.hidden = true;
+    renderUsers(await api.admin.users());
+    dashboardMessage.textContent = "Akun baru berhasil dibuat.";
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+document.querySelector("#users-table").addEventListener("change", async event => {
+  const select = event.target.closest("[data-user-role]");
+  if (!select) return;
+  const previousRole = dashboardUsers.find(user => Number(user.id) === Number(select.dataset.userRole))?.role;
+  select.disabled = true;
+  try {
+    await api.admin.updateUserRole(select.dataset.userRole, select.value);
+    renderUsers(await api.admin.users());
+    dashboardMessage.textContent = "Peran akun berhasil diperbarui.";
+  } catch (error) {
+    select.value = previousRole || "user";
+    select.disabled = false;
+    dashboardMessage.textContent = error.message;
   }
 });
 document.querySelector("#add-service-button").addEventListener("click", () => openServiceEditor());
