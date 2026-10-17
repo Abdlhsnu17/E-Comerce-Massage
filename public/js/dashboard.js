@@ -112,6 +112,13 @@ function renderUsers(users) {
   }).join("");
 }
 
+function setUsersMessage(message, type = "") {
+  const notice = document.querySelector("#users-message");
+  notice.textContent = message;
+  notice.classList.toggle("is-error", type === "error");
+  notice.classList.toggle("is-success", type === "success");
+}
+
 function renderServiceCategories(categories) {
   const select = serviceForm.elements.categoryId;
   select.innerHTML = '<option value="">Pilih kategori</option>' + categories.map(category => `<option value="${Number(category.id)}">${dashboardEsc(category.name)}</option>`).join("");
@@ -294,7 +301,7 @@ userForm.addEventListener("submit", async event => {
     userForm.reset();
     userForm.hidden = true;
     renderUsers(await api.admin.users());
-    dashboardMessage.textContent = values.id ? "Data akun berhasil diperbarui." : "Akun baru berhasil dibuat.";
+    setUsersMessage(values.id ? "Data akun berhasil diperbarui." : "Akun baru berhasil dibuat.", "success");
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -309,15 +316,15 @@ document.querySelector("#users-table").addEventListener("change", async event =>
   try {
     await api.admin.updateUserRole(select.dataset.userRole, select.value);
     renderUsers(await api.admin.users());
-    dashboardMessage.textContent = "Peran akun berhasil diperbarui.";
+    setUsersMessage("Peran akun berhasil diperbarui.", "success");
   } catch (error) {
     select.value = previousRole || "user";
     select.disabled = false;
-    dashboardMessage.textContent = error.message;
+    setUsersMessage(error.message, "error");
   }
 });
 const userPasswordForm = document.querySelector("#user-password-form");
-document.querySelector("#users-table").addEventListener("click", event => {
+document.querySelector("#users-table").addEventListener("click", async event => {
   const editButton = event.target.closest("[data-user-edit]");
   const deleteButton = event.target.closest("[data-user-delete]");
   if (editButton) {
@@ -329,13 +336,15 @@ document.querySelector("#users-table").addEventListener("click", event => {
     const user = dashboardUsers.find(item => Number(item.id) === Number(deleteButton.dataset.userDelete));
     if (!user || !window.confirm(`Hapus akun ${user.name}? Tindakan ini tidak dapat dibatalkan.`)) return;
     deleteButton.disabled = true;
-    api.admin.deleteUser(user.id).then(async () => {
+    setUsersMessage(`Menghapus akun ${user.name}…`);
+    try {
+      await api.admin.deleteUser(user.id);
       renderUsers(await api.admin.users());
-      dashboardMessage.textContent = "Akun berhasil dihapus.";
-    }).catch(error => {
-      dashboardMessage.textContent = error.message;
+      setUsersMessage(`Akun ${user.name} berhasil dihapus.`, "success");
+    } catch (error) {
+      setUsersMessage(error.message, "error");
       deleteButton.disabled = false;
-    });
+    }
     return;
   }
   const button = event.target.closest("[data-user-password]");
@@ -366,7 +375,7 @@ userPasswordForm.addEventListener("submit", async event => {
     await api.admin.updateUserPassword(values.userId, values.password);
     userPasswordForm.reset();
     userPasswordForm.hidden = true;
-    dashboardMessage.textContent = "Password akun berhasil diperbarui.";
+    setUsersMessage("Password akun berhasil diperbarui.", "success");
   } catch (error) {
     message.textContent = error.message;
   } finally {
