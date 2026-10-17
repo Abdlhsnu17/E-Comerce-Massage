@@ -178,6 +178,10 @@ CREATE TABLE orders (
   shipping_method   ENUM('regular','express') NOT NULL DEFAULT 'regular',
   payment_method    ENUM('QRIS','Transfer Bank','Tunai') NOT NULL,
   payment_status   ENUM('Menunggu pembayaran','Dibayar','Gagal','Dibatalkan') NOT NULL DEFAULT 'Menunggu pembayaran',
+  payment_gateway VARCHAR(30) NULL,
+  gateway_transaction_id VARCHAR(100) NULL,
+  qris_url VARCHAR(500) NULL,
+  payment_updated_at DATETIME NULL,
   appointment_date DATE           NULL,
   appointment_time TIME           NULL,
   service_location ENUM('studio','home') NOT NULL DEFAULT 'studio',
@@ -193,11 +197,27 @@ CREATE TABLE orders (
   updated_at        TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_orders_code (order_code),
+  UNIQUE KEY uq_orders_gateway_transaction (gateway_transaction_id),
   KEY idx_orders_user_date (user_id, created_at),
   KEY idx_orders_appointment (appointment_date, appointment_time, appointment_status),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
     REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Konfigurasi rekening tujuan pembayaran manual
+-- ---------------------------------------------------------------------
+CREATE TABLE payment_settings (
+  id                      TINYINT UNSIGNED NOT NULL,
+  bank_name               VARCHAR(80)  NOT NULL,
+  bank_account_number     VARCHAR(50)  NOT NULL,
+  bank_account_holder     VARCHAR(120) NOT NULL,
+  updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO payment_settings (id, bank_name, bank_account_number, bank_account_holder)
+VALUES (1, 'Bank Mandiri', '9000050103739', 'HAFSAH QUROTUN AINI');
 
 -- ---------------------------------------------------------------------
 -- Rincian item per pesanan.

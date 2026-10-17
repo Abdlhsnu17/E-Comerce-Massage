@@ -3,6 +3,7 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;
 let currentUser = null;
 const whatsappNumber = "6289634208909";
 const scheduleSelection = { date: "", time: "" };
+let paymentPollTimer = null;
 
 function setupCurrentDateTime() {
   const dateElement = document.querySelector("#current-date");
@@ -138,12 +139,12 @@ function paymentInstructions(order) {
   if (order.paymentMethod === "QRIS") {
     const hasQrisImage = Boolean(order.paymentDetails?.qrisImageUrl);
     const qrisImage = hasQrisImage ? `<img class="qris-code qris-code--image" src="${esc(order.paymentDetails.qrisImageUrl)}" alt="Barcode QRIS Aera Baby Spa">` : `<div class="qris-code" aria-label="Penanda QRIS belum dikonfigurasi"><span>QRIS</span><small>Belum diatur</small></div>`;
-    const message = hasQrisImage ? "Scan barcode QRIS Aera Baby Spa dengan aplikasi pembayaran Anda." : "Barcode QRIS merchant belum dikonfigurasi. Hubungi petugas untuk pembayaran QRIS.";
-    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Scan barcode QRIS</strong><p>${message} Nominal: <b>${rupiah(order.total)}</b>.</p></div></div>`;
+    const message = hasQrisImage ? "Scan QR ini dengan aplikasi pembayaran Anda. Nominal sudah terisi otomatis." : "QRIS dinamis belum tersedia. Hubungi petugas.";
+    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p><small class="payment-auto-status">Status pembayaran diperiksa otomatis…</small></div></div>`;
   }
   if (order.paymentMethod === "Transfer Bank") {
     const details = order.paymentDetails || {};
-    return `<div class="payment-instructions"><div><strong>Transfer Bank ${esc(details.bankName || "BCA")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "1234567890")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "Aera Baby Spa")}</b><br>Nominal transfer: <b>${rupiah(order.total)}</b></p></div></div>`;
+    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p><small>Status akan diperbarui admin setelah dana diterima.</small></div></div>`;
   }
   return `<div class="payment-instructions"><div><strong>Bayar tunai</strong><p>Siapkan <b>${rupiah(order.total)}</b> dan lakukan pembayaran kepada petugas saat sesi berlangsung.</p></div></div>`;
 }
@@ -156,6 +157,7 @@ function invoiceMarkup(order) {
 async function renderOrderHistory() {
   const history = document.querySelector("#riwayat");
   if (!history) return;
+  if (paymentPollTimer) { clearTimeout(paymentPollTimer); paymentPollTimer = null; }
   if (!currentUser) { history.hidden = true; return; }
   try {
     const orders = await api.orders();
@@ -165,13 +167,21 @@ async function renderOrderHistory() {
       recipientEmail: order.recipientEmail || currentUser.email
     })));
     history.hidden = false;
-    history.innerHTML = `<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? `${paymentInstructions(order)}${order.paymentMethod !== "Tunai" ? `<button class="button button--primary confirm-payment" type="button" data-payment-id="${Number(order.id)}">Saya sudah bayar</button>` : ""}` : invoiceMarkup(order)}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
+    history.innerHTML = `<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
     history.querySelectorAll(".confirm-payment").forEach(button => button.addEventListener("click", async () => {
       button.disabled = true;
       button.textContent = "Memeriksa pembayaran…";
       try { await api.confirmPayment(button.dataset.paymentId); await renderOrderHistory(); }
-      catch (error) { alert(error.message); button.disabled = false; button.textContent = "Saya sudah bayar"; }
+      catch (error) { alert(error.message); button.disabled = false; button.textContent = "Saya sudah transfer"; }
     }));
+    const pendingQris = orders.filter(order => order.paymentMethod === "QRIS" && order.paymentStatus === "Menunggu pembayaran");
+    if (pendingQris.length) {
+      paymentPollTimer = setTimeout(async () => {
+        const results = await Promise.allSettled(pendingQris.map(order => api.refreshPayment(order.id)));
+        const changed = results.some(result => result.status === "fulfilled" && result.value.paymentStatus !== "Menunggu pembayaran");
+        if (changed || document.visibilityState === "visible") await renderOrderHistory();
+      }, 5000);
+    }
   } catch (error) {
     history.hidden = false;
     history.innerHTML = `<p class="store-muted">${esc(error.message)}</p>`;
@@ -241,7 +251,7 @@ async function renderCart() {
         const confirmation = document.createElement("p");
         confirmation.className = "order-confirmation";
         confirmation.setAttribute("role", "status");
-        confirmation.innerHTML = `Pesanan <strong>${esc(order.orderCode)}</strong> berhasil dibuat. Lanjutkan pembayaran pada bagian riwayat di bawah; invoice akan langsung tersedia setelah status pembayaran berhasil.`;
+        confirmation.innerHTML = `Pesanan <strong>${esc(order.orderCode)}</strong> berhasil dibuat. ${order.paymentMethod === "QRIS" ? "Scan QRIS dinamis pada riwayat pembayaran; nominalnya sudah sesuai total pesanan dan status akan berubah otomatis setelah pembayaran diterima." : "Lanjutkan pembayaran pada bagian riwayat di bawah."}`;
         el.prepend(confirmation);
       } catch (error) {
         message.textContent = error.message;

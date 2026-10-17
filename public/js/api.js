@@ -34,6 +34,7 @@ const api = {
   orders: () => api.request("/orders"),
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
   confirmPayment: orderId => api.request(`/orders/${orderId}/payment`, { method: "PATCH" }),
+  refreshPayment: orderId => api.request(`/orders/${orderId}/payment/refresh`, { method: "POST" }),
   admin: {
     stats: () => api.request("/admin/stats"),
     orders: () => api.request("/admin/orders"),

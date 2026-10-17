@@ -1,16 +1,32 @@
 const { pool } = require("../config/db");
 const { findOrCreateCart } = require("./cartController");
+const { createQris, getStatus, verifyNotification, localStatus, integerAmount } = require("../services/midtransQris");
 
 const SHIPPING_COST = { regular: 0, express: 0 };
 const PAYMENT_METHODS = ["QRIS", "Transfer Bank", "Tunai"];
 const SERVICE_LOCATIONS = ["studio", "home"];
-const PAYMENT_DETAILS = Object.freeze({
-  bankName: process.env.BANK_NAME || "BCA",
-  bankAccountNumber: process.env.BANK_ACCOUNT_NUMBER || "1234567890",
-  bankAccountHolder: process.env.BANK_ACCOUNT_HOLDER || "Aera Baby Spa",
+const DEFAULT_PAYMENT_DETAILS = Object.freeze({
+  bankName: process.env.BANK_NAME || "Bank Mandiri",
+  bankAccountNumber: process.env.BANK_ACCOUNT_NUMBER || "9000050103739",
+  bankAccountHolder: process.env.BANK_ACCOUNT_HOLDER || "HAFSAH QUROTUN AINI",
   // URL gambar QRIS merchant yang diterbitkan penyedia pembayaran.
   qrisImageUrl: process.env.QRIS_IMAGE_URL || ""
 });
+
+async function getPaymentDetails() {
+  try {
+    const [rows] = await pool.query(
+      `SELECT bank_name AS bankName, bank_account_number AS bankAccountNumber,
+              bank_account_holder AS bankAccountHolder
+         FROM payment_settings WHERE id = 1`
+    );
+    return { ...DEFAULT_PAYMENT_DETAILS, ...(rows[0] || {}) };
+  } catch (error) {
+    // Tetap kompatibel ketika migrasi belum sempat dijalankan.
+    if (error.code === "ER_NO_SUCH_TABLE") return DEFAULT_PAYMENT_DETAILS;
+    throw error;
+  }
+}
 
 // Dilempar dari dalam transaksi supaya rollback selalu jalan sebelum dibalas ke klien.
 class HttpError extends Error {
@@ -21,7 +37,33 @@ class HttpError extends Error {
 }
 
 function buildOrderCode() {
-  return `LM-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+  return `AERA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+function paymentDetails(details, order = {}) {
+  return { ...details, qrisImageUrl: order.qrisUrl || "" };
+}
+
+async function applyGatewayStatus(connection, order, gatewayPayload) {
+  if (integerAmount(Number(gatewayPayload.gross_amount)) !== integerAmount(Number(order.total))) {
+    throw new HttpError(400, "Nominal notifikasi pembayaran tidak sesuai dengan pesanan.");
+  }
+  const nextStatus = localStatus(gatewayPayload);
+  // Status lunas tidak boleh mundur bila notifikasi lama datang terlambat.
+  if (order.paymentStatus === "Dibayar" && nextStatus !== "Dibayar") return "Dibayar";
+  await connection.query(
+    `UPDATE orders SET payment_status = ?, payment_updated_at = NOW(),
+            gateway_transaction_id = COALESCE(gateway_transaction_id, ?)
+      WHERE id = ?`,
+    [nextStatus, gatewayPayload.transaction_id || null, order.id]
+  );
+  await connection.query(
+    `UPDATE orders SET status = 'Selesai'
+      WHERE id = ? AND payment_status = 'Dibayar'
+        AND appointment_status = 'Selesai' AND status <> 'Dibatalkan'`,
+    [order.id]
+  );
+  return nextStatus;
 }
 
 async function createOrder(req, res, next) {
@@ -111,10 +153,28 @@ async function createOrder(req, res, next) {
       await connection.query("UPDATE products SET stock = stock - ? WHERE id = ?", [line.qty, line.id]);
     }
 
+    let qris = null;
+    if (paymentMethod === "QRIS") {
+      qris = await createQris({
+        orderCode,
+        total: subtotal + shippingCost,
+        items: [
+          ...lines.map(line => ({ id: line.id, name: line.name, price: Number(line.price), qty: line.qty })),
+          ...(shippingCost ? [{ id: "shipping", name: "Biaya layanan", price: shippingCost, qty: 1 }] : [])
+        ],
+        customer: { name: recipientName, email: recipientEmail, phone: recipientPhone }
+      });
+      await connection.query(
+        `UPDATE orders SET payment_gateway = 'midtrans', gateway_transaction_id = ?, qris_url = ? WHERE id = ?`,
+        [qris.transactionId, qris.qrUrl, orderResult.insertId]
+      );
+    }
+
     // Keranjang dikosongkan di transaksi yang sama dengan pembuatan pesanan.
     await connection.query("DELETE FROM cart_items WHERE cart_id = ?", [cartId]);
 
     await connection.commit();
+    const details = await getPaymentDetails();
     res.status(201).json({
       id: orderResult.insertId,
       orderCode,
@@ -127,7 +187,7 @@ async function createOrder(req, res, next) {
       appointmentDate,
       appointmentTime,
       serviceLocation,
-      paymentDetails: PAYMENT_DETAILS
+      paymentDetails: paymentDetails(details, { qrisUrl: qris?.qrUrl })
     });
   } catch (error) {
     await connection.rollback();
@@ -156,6 +216,12 @@ async function confirmPayment(req, res, next) {
     if (order.paymentMethod === "Tunai") {
       return res.status(400).json({ message: "Pembayaran tunai dikonfirmasi petugas saat sesi berlangsung." });
     }
+    if (order.paymentMethod === "QRIS") {
+      return res.status(400).json({ message: "Status QRIS diperbarui otomatis oleh payment gateway." });
+    }
+    if (order.paymentMethod === "Transfer Bank") {
+      return res.status(400).json({ message: "Transfer rekening dikonfirmasi oleh admin setelah dana diterima." });
+    }
     if (order.paymentStatus === "Dibayar") return res.json({ ...order, message: "Pembayaran sudah berhasil dikonfirmasi." });
     if (order.paymentStatus !== "Menunggu pembayaran") {
       return res.status(409).json({ message: `Pembayaran tidak dapat dikonfirmasi karena statusnya ${order.paymentStatus}.` });
@@ -182,7 +248,8 @@ async function listOrders(req, res, next) {
     const [orders] = await pool.query(
             `SELECT id, order_code AS orderCode, status, subtotal, shipping_cost AS shippingCost,
               total, shipping_method AS shippingMethod, payment_method AS paymentMethod,
-              payment_status AS paymentStatus, appointment_date AS appointmentDate,
+              payment_status AS paymentStatus, qris_url AS qrisUrl,
+              appointment_date AS appointmentDate,
               TIME_FORMAT(appointment_time, '%H:%i') AS appointmentTime,
               service_location AS serviceLocation, appointment_status AS appointmentStatus,
               created_at AS createdAt
@@ -200,10 +267,49 @@ async function listOrders(req, res, next) {
 
     const grouped = new Map(orders.map(order => [order.id, { ...order, items: [] }]));
     items.forEach(item => grouped.get(item.orderId)?.items.push(item));
-    res.json([...grouped.values()].map(order => ({ ...order, paymentDetails: PAYMENT_DETAILS })));
+    const details = await getPaymentDetails();
+    res.json([...grouped.values()].map(order => ({ ...order, paymentDetails: paymentDetails(details, order) })));
   } catch (error) {
     next(error);
   }
 }
 
-module.exports = { createOrder, listOrders, confirmPayment, SHIPPING_COST };
+async function refreshPayment(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
+              payment_status AS paymentStatus
+         FROM orders WHERE id = ? AND user_id = ?`,
+      [req.params.id, req.user.id]
+    );
+    const order = rows[0];
+    if (!order) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    if (order.paymentMethod !== "QRIS" || order.paymentStatus !== "Menunggu pembayaran") {
+      return res.json({ id: order.id, paymentStatus: order.paymentStatus });
+    }
+    const gatewayPayload = await getStatus(order.orderCode);
+    const paymentStatus = await applyGatewayStatus(pool, order, gatewayPayload);
+    res.json({ id: order.id, paymentStatus });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function midtransNotification(req, res, next) {
+  try {
+    if (!verifyNotification(req.body)) return res.status(401).json({ message: "Tanda tangan notifikasi tidak valid." });
+    const [rows] = await pool.query(
+      `SELECT id, total, payment_status AS paymentStatus FROM orders
+        WHERE order_code = ? AND payment_method = 'QRIS'`,
+      [req.body.order_id]
+    );
+    const order = rows[0];
+    if (!order) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    const paymentStatus = await applyGatewayStatus(pool, order, req.body);
+    res.json({ received: true, paymentStatus });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { createOrder, listOrders, confirmPayment, refreshPayment, midtransNotification, SHIPPING_COST };

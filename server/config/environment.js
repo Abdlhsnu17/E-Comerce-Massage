@@ -9,7 +9,8 @@ function validateEnvironment() {
 
   [
     "DB_HOST", "DB_USER", "DB_NAME", "JWT_SECRET", "APP_URL",
-    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM"
+    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM",
+    "MIDTRANS_SERVER_KEY"
   ].forEach(requireProductionValue);
 
   if (process.env.JWT_SECRET.length < 32) {

@@ -72,9 +72,9 @@ SMTP_USER=username
 SMTP_PASS=password-aplikasi-atau-api-key
 MAIL_FROM="Aera Baby Spa <no-reply@example.com>"
 # Instruksi pembayaran yang tampil pada checkout/riwayat
-BANK_NAME=BCA
-BANK_ACCOUNT_NUMBER=1234567890
-BANK_ACCOUNT_HOLDER="Aera Baby Spa"
+BANK_NAME="Bank Mandiri"
+BANK_ACCOUNT_NUMBER=9000050103739
+BANK_ACCOUNT_HOLDER="HAFSAH QUROTUN AINI"
 # URL publik gambar QRIS merchant yang aktif (PNG/JPG); kosong memakai tampilan penanda QRIS.
 QRIS_IMAGE_URL=https://domain-anda/assets/img/qris-merchant.png
 ```
@@ -244,3 +244,26 @@ Pastikan aplikasi dibuka melalui `http://localhost:3000`, bukan dari file HTML l
 ## Lisensi
 
 Project ini dibuat untuk kebutuhan internal bisnis dan dapat dikembangkan lebih lanjut sesuai kebutuhan operasional.
+
+## Pembayaran QRIS dinamis
+
+QRIS memakai Midtrans Core API agar nominal mengikuti total keranjang dan status dibayar berasal dari notifikasi gateway. Jalankan migrasi `database/migrations/009_dynamic_qris.sql`, lalu isi:
+
+Jika migrasi `009` sudah pernah dijalankan sebelumnya, jalankan juga `database/migrations/010_mandiri_payment_settings.sql` untuk memasukkan rekening Mandiri ke database.
+
+```env
+MIDTRANS_SERVER_KEY=SB-Mid-server-...
+MIDTRANS_IS_PRODUCTION=false
+MIDTRANS_QRIS_ACQUIRER=gopay
+BANK_NAME=Bank Mandiri
+BANK_ACCOUNT_NUMBER=9000050103739
+BANK_ACCOUNT_HOLDER=HAFSAH QUROTUN AINI
+```
+
+Atur Payment Notification URL pada dashboard Midtrans ke:
+
+```text
+https://domain-anda.example/api/payments/midtrans/notification
+```
+
+Untuk produksi, gunakan Server Key produksi, set `MIDTRANS_IS_PRODUCTION=true`, dan pastikan endpoint memakai HTTPS publik.
