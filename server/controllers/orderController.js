@@ -79,7 +79,8 @@ async function createOrder(req, res, next) {
     address,
     city,
     zip,
-    notes
+    notes,
+    couponCode
   } = req.body;
 
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
@@ -127,21 +128,53 @@ async function createOrder(req, res, next) {
     }
 
     const shippingCost = SHIPPING_COST[shippingMethod];
+    let discountAmount = 0;
+    let appliedCoupon = null;
+    const normalizedCoupon = String(couponCode || "").trim().toUpperCase();
+    if (normalizedCoupon) {
+      const [coupons] = await connection.query(
+        `SELECT id, code, discount_type AS discountType, discount_value AS discountValue,
+                minimum_order AS minimumOrder, usage_limit AS usageLimit, used_count AS usedCount
+           FROM coupons WHERE code = ? AND is_active = 1
+             AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at >= NOW()) FOR UPDATE`,
+        [normalizedCoupon]
+      );
+      const coupon = coupons[0];
+      if (!coupon || (coupon.usageLimit !== null && Number(coupon.usedCount) >= Number(coupon.usageLimit))) throw new HttpError(400, "Voucher tidak aktif atau kuotanya telah habis.");
+      if (subtotal < Number(coupon.minimumOrder)) throw new HttpError(400, `Voucher berlaku untuk transaksi minimal ${coupon.minimumOrder}.`);
+      discountAmount = coupon.discountType === "percent" ? subtotal * Number(coupon.discountValue) / 100 : Number(coupon.discountValue);
+      discountAmount = Math.min(discountAmount, subtotal);
+      appliedCoupon = coupon;
+    }
     const orderCode = buildOrderCode();
+
+    // Satu terapis/sesi hanya menerima satu booking aktif pada waktu yang sama.
+    // Pemeriksaan dilakukan di dalam transaksi agar checkout bersamaan tetap aman.
+    const [occupiedSlots] = await connection.query(
+      `SELECT id FROM orders
+        WHERE appointment_date = ? AND appointment_time = ?
+          AND status <> 'Dibatalkan' AND appointment_status <> 'Dibatalkan'
+        FOR UPDATE`,
+      [appointmentDate, appointmentTime]
+    );
+    if (occupiedSlots.length) {
+      throw new HttpError(409, "Slot jadwal tersebut baru saja terisi. Silakan pilih jam lain.");
+    }
 
     const [orderResult] = await connection.query(
       `INSERT INTO orders
-        (order_code, user_id, subtotal, shipping_cost, total, shipping_method, payment_method,
+        (order_code, user_id, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method,
          appointment_date, appointment_time, service_location,
          recipient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
-        orderCode, req.user.id, subtotal, shippingCost, subtotal + shippingCost,
+        orderCode, req.user.id, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
         shippingMethod, paymentMethod, appointmentDate, appointmentTime, serviceLocation,
         recipientName, recipientEmail, recipientPhone || null,
         address, city || null, zip || null, notes || null
       ]
     );
+    if (appliedCoupon) await connection.query("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?", [appliedCoupon.id]);
 
     await connection.query(
       `INSERT INTO order_items (order_id, product_id, product_name, product_image, unit_price, quantity)
@@ -157,7 +190,8 @@ async function createOrder(req, res, next) {
     if (paymentMethod === "QRIS") {
       qris = await createQris({
         orderCode,
-        total: subtotal + shippingCost,
+        total: subtotal - discountAmount + shippingCost,
+        discountAmount,
         items: [
           ...lines.map(line => ({ id: line.id, name: line.name, price: Number(line.price), qty: line.qty })),
           ...(shippingCost ? [{ id: "shipping", name: "Biaya layanan", price: shippingCost, qty: 1 }] : [])
@@ -180,7 +214,7 @@ async function createOrder(req, res, next) {
       orderCode,
       subtotal,
       shippingCost,
-      total: subtotal + shippingCost,
+        total: subtotal - discountAmount + shippingCost,
       status: "Sedang diproses",
       paymentStatus: "Menunggu pembayaran",
       appointmentStatus: "Menunggu konfirmasi",
@@ -196,6 +230,49 @@ async function createOrder(req, res, next) {
   } finally {
     connection.release();
   }
+}
+
+async function getAvailability(req, res, next) {
+  try {
+    const date = String(req.query.date || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: "Tanggal jadwal tidak valid." });
+    }
+    const [rows] = await pool.query(
+      `SELECT TIME_FORMAT(appointment_time, '%H:%i') AS time
+         FROM orders
+        WHERE appointment_date = ? AND status <> 'Dibatalkan'
+          AND appointment_status <> 'Dibatalkan'`,
+      [date]
+    );
+    res.json({ date, occupiedTimes: rows.map(row => row.time) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function requestOrderChange(req, res, next) {
+  try {
+    const orderId = Number(req.params.id);
+    const requestType = req.body.requestType;
+    const reason = String(req.body.reason || "").trim().slice(0, 500) || null;
+    if (!Number.isInteger(orderId) || !["reschedule", "cancel"].includes(requestType)) return res.status(400).json({ message: "Permintaan tidak valid." });
+    const [orders] = await pool.query(
+      `SELECT id FROM orders WHERE id = ? AND user_id = ? AND status <> 'Dibatalkan' AND appointment_status <> 'Selesai'`,
+      [orderId, req.user.id]
+    );
+    if (!orders.length) return res.status(404).json({ message: "Pesanan tidak dapat diubah." });
+    let date = null, time = null;
+    if (requestType === "reschedule") {
+      date = String(req.body.appointmentDate || ""); time = String(req.body.appointmentTime || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ message: "Tanggal dan jam baru wajib diisi." });
+    }
+    await pool.query(
+      `INSERT INTO order_change_requests (order_id, user_id, request_type, requested_date, requested_time, reason)
+       VALUES (?, ?, ?, ?, ?, ?)`, [orderId, req.user.id, requestType, date, time, reason]
+    );
+    res.status(201).json({ message: requestType === "cancel" ? "Permintaan pembatalan telah dikirim ke admin." : "Permintaan ubah jadwal telah dikirim ke admin." });
+  } catch (error) { next(error); }
 }
 
 /**
@@ -312,4 +389,4 @@ async function midtransNotification(req, res, next) {
   }
 }
 
-module.exports = { createOrder, listOrders, confirmPayment, refreshPayment, midtransNotification, SHIPPING_COST };
+module.exports = { createOrder, getAvailability, requestOrderChange, listOrders, confirmPayment, refreshPayment, midtransNotification, SHIPPING_COST };

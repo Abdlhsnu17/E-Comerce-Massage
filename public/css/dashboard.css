@@ -123,6 +123,28 @@
 .metric { border-radius: 18px; transition: transform .2s ease,box-shadow .2s ease; }
 .metric:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(8,115,51,.1); }
 .service-editor,.table-wrap { border-radius: 16px; }
+.dashboard-charts { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(280px,.9fr); gap: 16px; margin-top: 16px; }
+.chart-card { min-height: 238px; padding: 22px; border: 1px solid #ccebd4; border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 9px 28px rgba(8,115,51,.06); }
+.chart-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.chart-card__heading span { display: block; color: #5e9370; font-size: 9px; font-weight: 800; letter-spacing: .13em; }
+.chart-card__heading h2 { margin: 5px 0 0; color: #174d32; font: 700 18px/1.2 var(--display); }
+.chart-card__heading > strong { color: #087333; font: 800 22px/1 var(--display); }
+.chart-card__heading > strong small { color: #6c8875; font: 600 10px var(--body); }
+.status-bars { display: grid; grid-template-columns: repeat(4,minmax(54px,1fr)); gap: 12px; height: 150px; margin-top: 20px; }
+.status-bar { display: grid; grid-template-rows: 18px 1fr auto; gap: 6px; min-width: 0; }
+.status-bar__value { color: #174d32; font-size: 12px; font-weight: 800; text-align: center; }
+.status-bar__track { position: relative; min-height: 86px; overflow: hidden; border-radius: 8px 8px 5px 5px; background: repeating-linear-gradient(to top,#e8f4eb 0 1px,transparent 1px 26px); }
+.status-bar__track i { position: absolute; right: 0; bottom: 0; left: 0; min-height: 5px; border-radius: 7px 7px 4px 4px; box-shadow: 0 -4px 12px rgba(8,115,51,.08); transition: height .45s ease; }
+.status-bar > span { overflow: hidden; color: #64806d; font-size: 9px; font-weight: 700; line-height: 1.25; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.completion-chart { display: flex; align-items: center; gap: 20px; min-height: 156px; }
+.completion-ring { position: relative; display: grid; flex: 0 0 126px; width: 126px; aspect-ratio: 1; place-items: center; border-radius: 50%; background: conic-gradient(#ff1684 var(--completion),#eaf4ed 0); }
+.completion-ring::before { content: ""; position: absolute; width: 96px; aspect-ratio: 1; border-radius: 50%; background: #fff; }
+.completion-ring > div { position: relative; display: grid; place-items: center; }
+.completion-ring strong { color: #174d32; font: 800 24px/1 var(--display); }
+.completion-ring small { margin-top: 4px; color: #6d8775; font-size: 9px; font-weight: 700; }
+.completion-copy { display: grid; gap: 7px; }
+.completion-copy strong { color: #087333; font-size: 13px; }
+.completion-copy span { color: #6d8775; font-size: 11px; line-height: 1.55; }
 
 @media (max-width: 760px) {
   .dashboard-header__inner { width: calc(100% - 28px); margin-inline: auto; }
@@ -133,6 +155,7 @@
   .sidebar-footer { margin-top: 20px; }
   .sidebar-backdrop { z-index: 6; backdrop-filter: blur(4px); }
   .dashboard-main { width: calc(100% - 40px); margin-inline: auto; padding-inline: 0; }
+  .dashboard-charts { grid-template-columns: 1fr; }
   .menu-toggle { position: relative; display: grid; width: 42px; height: 42px; place-items: center; gap: 0; padding: 0; border: 1px solid #ccebd4; border-radius: 12px; background: #fff; box-shadow: 0 7px 18px rgba(8,115,51,.09); transition: background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease; }
   .menu-toggle:hover { transform: translateY(-1px); border-color: #88c99c; background: #f1fbf4; box-shadow: 0 10px 22px rgba(8,115,51,.14); }
   .menu-toggle:focus-visible { outline: 3px solid rgba(255,22,132,.28); outline-offset: 3px; }
@@ -146,3 +169,4 @@
   .menu-toggle.is-active span:nth-child(2) { opacity: 0; transform: scaleX(.4); }
   .menu-toggle.is-active span:nth-child(3) { transform: rotate(-45deg); }
 }
+@media (max-width: 460px) { .chart-card { padding: 18px; } .completion-chart { gap: 14px; } .completion-ring { flex-basis: 110px; width: 110px; } .completion-ring::before { width: 84px; } .completion-ring strong { font-size: 21px; } }

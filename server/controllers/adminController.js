@@ -471,6 +471,27 @@ async function deleteUser(req, res, next) {
   }
 }
 
+async function listReviews(_req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT r.id, r.order_id AS orderId, r.rating, r.comment, r.is_published AS isPublished, r.created_at AS createdAt,
+              u.name AS customerName, o.order_code AS orderCode
+         FROM service_reviews r JOIN users u ON u.id = r.user_id JOIN orders o ON o.id = r.order_id
+        ORDER BY r.created_at DESC`
+    );
+    res.json(rows);
+  } catch (error) { next(error); }
+}
+
+async function moderateReview(req, res, next) {
+  try {
+    const isPublished = Boolean(req.body.isPublished);
+    const [result] = await pool.query("UPDATE service_reviews SET is_published = ? WHERE id = ?", [isPublished, req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: "Ulasan tidak ditemukan." });
+    res.json({ id: Number(req.params.id), isPublished, message: isPublished ? "Ulasan diterbitkan." : "Ulasan disembunyikan." });
+  } catch (error) { next(error); }
+}
+
 module.exports = {
   getStats,
   listAllOrders,
@@ -488,5 +509,7 @@ module.exports = {
   updateUserRole,
   updateUserPassword,
   deleteUser,
+  listReviews,
+  moderateReview,
   ORDER_STATUSES
 };

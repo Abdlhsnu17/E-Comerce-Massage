@@ -34,6 +34,7 @@
       <div class="sidebar-group"><div class="sidebar-label">KONTEN</div>
         <a class="sidebar-link" href="#konten"><span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M4 9h16M8 5v4"/></svg></span><span class="sidebar-link__copy"><b>Konten website</b><small>Halaman utama</small></span></a>
         <a class="sidebar-link" href="#berita"><span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span class="sidebar-link__copy"><b>Berita</b><small>Publikasi & info</small></span></a>
+        <a class="sidebar-link" href="#ulasan"><span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.8-5.4 2.8 1-6.1-4.4-4.3 6.1-.9z"/></svg></span><span class="sidebar-link__copy"><b>Ulasan</b><small>Moderasi pelanggan</small></span></a>
       </div>
       <div class="sidebar-group"><div class="sidebar-label">SISTEM</div>
         <a class="sidebar-link" href="#pengguna"><span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.5-3.5 2.4-5 5.5-5s5 1.5 5.5 5M16 8h5M18.5 5.5v5"/></svg></span><span class="sidebar-link__copy"><b>Pengguna</b><small>Akun & hak akses</small></span></a>
@@ -46,7 +47,7 @@
     <p id="dashboard-message" class="dashboard-message" role="status" aria-live="polite">Memuat data…</p>
 
     <section id="dashboard-content" hidden>
-      <div id="ringkasan"><div class="metric-grid" id="metric-grid"></div></div>
+      <div id="ringkasan"><div class="metric-grid" id="metric-grid"></div><div id="dashboard-charts" class="dashboard-charts" aria-live="polite"></div></div>
       <section id="pesanan" class="dashboard-section">
         <div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Aktivitas</span><h2>Pesanan terbaru</h2></div><span id="order-count" class="section-count"></span></div>
         <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Pelanggan</th><th>Layanan</th><th>Jadwal</th><th>Lokasi</th><th>Total</th><th>Invoice</th><th>Status pesanan</th><th>Status sesi</th><th>Pembayaran</th><th>Aksi</th></tr></thead><tbody id="orders-table"></tbody></table></div>
@@ -96,6 +97,7 @@
         <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Email</th><th>Telepon</th><th>Peran</th><th>Total pesanan</th><th>Terdaftar</th><th>Aksi</th></tr></thead><tbody id="users-table"></tbody></table></div>
         <p class="empty-message" id="users-empty" hidden>Belum ada akun terdaftar.</p>
       </section>
+      <section id="ulasan" class="dashboard-section"><div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Kepercayaan</span><h2>Moderasi ulasan</h2></div></div><p id="reviews-message" class="section-message" role="status"></p><div class="table-wrap"><table><thead><tr><th>Pelanggan</th><th>Pesanan</th><th>Rating</th><th>Ulasan</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="reviews-table"></tbody></table></div><p id="reviews-empty" class="empty-message" hidden>Belum ada ulasan pelanggan.</p></section>
       <section id="keamanan" class="dashboard-section"><div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Akun admin</span><h2>Ganti password</h2></div></div><form id="password-form" class="service-editor"><div class="service-form-grid"><label>Password saat ini<input name="currentPassword" type="password" autocomplete="current-password" required></label><label>Password baru<input name="newPassword" type="password" minlength="12" autocomplete="new-password" required></label><label>Ulangi password baru<input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></label></div><div class="service-form-footer"><p id="password-message" role="status" aria-live="polite"></p><button class="service-add-button" type="submit">Perbarui password</button></div></form></section>
     </section>
 

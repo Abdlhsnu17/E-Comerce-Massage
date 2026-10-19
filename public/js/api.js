@@ -30,9 +30,14 @@ const api = {
   changePassword: body => api.request("/auth/password", { method: "PATCH", body: JSON.stringify(body) }),
   requestPasswordReset: body => api.request("/auth/password-reset", { method: "POST", body: JSON.stringify(body) }),
   resetPassword: body => api.request("/auth/password-reset/confirm", { method: "POST", body: JSON.stringify(body) }),
+  profile: () => api.request("/auth/profile"),
+  updateProfile: body => api.request("/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
   logout: () => api.request("/auth/logout", { method: "POST" }),
   orders: () => api.request("/orders"),
+  appointmentAvailability: date => api.request(`/appointments/availability?date=${encodeURIComponent(date)}`),
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
+  requestOrderChange: (orderId, body) => api.request(`/orders/${orderId}/change-request`, { method: "POST", body: JSON.stringify(body) }),
+  createReview: (orderId, body) => api.request(`/orders/${orderId}/review`, { method: "POST", body: JSON.stringify(body) }),
   confirmPayment: orderId => api.request(`/orders/${orderId}/payment`, { method: "PATCH" }),
   refreshPayment: orderId => api.request(`/orders/${orderId}/payment/refresh`, { method: "POST" }),
   admin: {
@@ -59,5 +64,7 @@ const api = {
     ,updateUserRole: (id, role) => api.request(`/admin/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) })
     ,updateUserPassword: (id, password) => api.request(`/admin/users/${id}/password`, { method: "PATCH", body: JSON.stringify({ password }) })
     ,deleteUser: id => api.request(`/admin/users/${id}`, { method: "DELETE" })
+    ,reviews: () => api.request("/admin/reviews")
+    ,moderateReview: (id, isPublished) => api.request(`/admin/reviews/${id}`, { method: "PATCH", body: JSON.stringify({ isPublished }) })
   }
 };

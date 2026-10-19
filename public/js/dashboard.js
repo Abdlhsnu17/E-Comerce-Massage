@@ -107,6 +107,22 @@ function renderMetrics(stats) {
     ["Total transaksi", dashboardMoney(stats.revenue)]
   ];
   document.querySelector("#metric-grid").innerHTML = metrics.map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${dashboardEsc(value)}</strong></article>`).join("");
+  renderDashboardCharts(stats.byStatus || []);
+}
+
+function renderDashboardCharts(byStatus) {
+  const statuses = ["Sedang diproses", "Dikirim", "Selesai", "Dibatalkan"];
+  const colors = ["#ff1684", "#0e8a48", "#1f6f4a", "#d18a42"];
+  const entries = statuses.map((status, index) => {
+    const row = byStatus.find(item => item.status === status) || {};
+    return { status, count: Number(row.jumlah) || 0, color: colors[index] };
+  });
+  const total = entries.reduce((sum, item) => sum + item.count, 0);
+  const completed = entries.find(item => item.status === "Selesai")?.count || 0;
+  const maximum = Math.max(...entries.map(item => item.count), 1);
+  const completedPercent = total ? Math.round((completed / total) * 100) : 0;
+  const chart = document.querySelector("#dashboard-charts");
+  chart.innerHTML = `<article class="chart-card chart-card--bars"><div class="chart-card__heading"><div><span>AKTIVITAS PESANAN</span><h2>Status pesanan</h2></div><strong>${total} <small>pesanan</small></strong></div><div class="status-bars">${entries.map(item => `<div class="status-bar"><div class="status-bar__value">${item.count}</div><div class="status-bar__track"><i style="height:${Math.max(7, Math.round((item.count / maximum) * 100))}%;background:${item.color}"></i></div><span>${dashboardEsc(item.status)}</span></div>`).join("")}</div></article><article class="chart-card chart-card--progress"><div class="chart-card__heading"><div><span>TINGKAT PENYELESAIAN</span><h2>Pesanan selesai</h2></div></div><div class="completion-chart"><div class="completion-ring" style="--completion:${completedPercent}%"><div><strong>${completedPercent}%</strong><small>Selesai</small></div></div><div class="completion-copy"><strong>${completed} dari ${total}</strong><span>Pesanan telah selesai diproses.</span></div></div></article>`;
 }
 
 function renderOrders(orders) {
@@ -147,6 +163,11 @@ function renderUsers(users) {
   }).join("");
 }
 
+function renderReviews(reviews) {
+  document.querySelector("#reviews-empty").hidden = reviews.length > 0;
+  document.querySelector("#reviews-table").innerHTML = reviews.map(review => `<tr><td>${dashboardEsc(review.customerName)}</td><td>${dashboardEsc(review.orderCode)}</td><td>${"★".repeat(Number(review.rating))}</td><td>${dashboardEsc(review.comment || "-")}</td><td>${review.isPublished ? "Terbit" : "Menunggu"}</td><td><button class="icon-button" type="button" data-review-toggle="${review.id}" data-review-published="${review.isPublished ? "1" : "0"}" aria-label="${review.isPublished ? "Sembunyikan" : "Terbitkan"} ulasan" title="${review.isPublished ? "Sembunyikan" : "Terbitkan"}">${review.isPublished ? "−" : "✓"}</button></td></tr>`).join("");
+}
+
 function setUsersMessage(message, type = "") {
   const notice = document.querySelector("#users-message");
   notice.textContent = message;
@@ -183,12 +204,13 @@ function openServiceEditor(product = null) {
 async function refreshDashboard() {
   dashboardMessage.textContent = "Memuat data dashboard…";
   try {
-    const [stats, orders, products, categories, siteContent, users] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.categories(), api.admin.siteContent(), api.admin.users()]);
+    const [stats, orders, products, categories, siteContent, users, reviews] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.categories(), api.admin.siteContent(), api.admin.users(), api.admin.reviews()]);
     renderMetrics(stats);
     renderOrders(orders);
     renderServices(products);
     renderServiceCategories(categories);
     renderUsers(users);
+    renderReviews(reviews);
     Object.entries(siteContent).forEach(([name, value]) => {
       const field = document.querySelector(`#site-content-form [name="${name}"]`);
       if (field) field.value = value || "";
@@ -363,6 +385,20 @@ document.querySelector("#users-table").addEventListener("change", async event =>
     select.value = previousRole || "user";
     select.disabled = false;
     setUsersMessage(error.message, "error");
+  }
+});
+document.querySelector("#reviews-table").addEventListener("click", async event => {
+  const button = event.target.closest("[data-review-toggle]");
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const isPublished = button.dataset.reviewPublished !== "1";
+    await api.admin.moderateReview(button.dataset.reviewToggle, isPublished);
+    renderReviews(await api.admin.reviews());
+    document.querySelector("#reviews-message").textContent = isPublished ? "Ulasan berhasil diterbitkan." : "Ulasan berhasil disembunyikan.";
+  } catch (error) {
+    document.querySelector("#reviews-message").textContent = error.message;
+    button.disabled = false;
   }
 });
 const userPasswordForm = document.querySelector("#user-password-form");

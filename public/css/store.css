@@ -55,3 +55,10 @@
   .cart-row>strong{grid-column:2;grid-row:2}
   .cart-controls{grid-column:2;grid-row:3}
 }
+.customer-profile { margin: 18px 0 28px; border: 1px solid #ccebd4; border-radius: 14px; background: #fff; overflow: hidden; }
+.customer-profile summary { display: grid; gap: 3px; padding: 16px 18px; color: #174d32; cursor: pointer; }
+.customer-profile summary span { font-weight: 800; }
+.customer-profile summary small { color: #668171; font-size: 11px; }
+.customer-profile .checkout-form { margin: 0; border-top: 1px solid #e5f4e8; border-radius: 0; box-shadow: none; }
+.profile-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .profile-inline { grid-template-columns: 1fr; } }

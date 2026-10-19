@@ -124,6 +124,16 @@ Gunakan Node.js 20+, MySQL/MariaDB, dan Nginx. Aplikasi hanya mendengarkan di `1
 
 Jangan membuka port 3000 dari internet. Buka hanya 80/443 pada firewall dan gunakan sertifikat TLS yang aktif sebelum mengarahkan domain produksi.
 
+## Backup harian
+
+Skrip [backup-aera-baby-spa.sh](deploy/backup-aera-baby-spa.sh) membuat backup MySQL dan folder upload bertanggal. Tambahkan `BACKUP_DIR`, `UPLOADS_DIR`, dan `BACKUP_RETENTION_DAYS` pada file environment server, lalu jadwalkan setiap hari, misalnya pukul 02.15:
+
+```cron
+15 2 * * * /var/www/aera-baby-spa/deploy/backup-aera-baby-spa.sh /etc/aera-baby-spa.env >> /var/log/aera-backup.log 2>&1
+```
+
+Lakukan uji pemulihan backup secara berkala di database terpisah sebelum mengandalkannya untuk produksi.
+
 ## Deploy dengan Docker Compose
 
 Alternatif deployment yang dapat direproduksi tersedia melalui Docker Compose. Compose menjalankan aplikasi Node.js dan MariaDB, sementara Nginx pada host tetap menangani HTTPS dan meneruskan trafik ke `127.0.0.1:3000`.

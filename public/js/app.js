@@ -167,7 +167,19 @@ async function renderOrderHistory() {
       recipientEmail: order.recipientEmail || currentUser.email
     })));
     history.hidden = false;
-    history.innerHTML = `<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
+    const customerProfile = await api.profile().catch(() => ({}));
+    history.innerHTML = `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details><div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}${order.status === "Selesai" && order.appointmentStatus === "Selesai" ? `<div class="order-change-actions"><button type="button" data-review-order="${order.id}">Beri ulasan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
+    history.querySelector("#customer-profile-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const message = form.querySelector("p");
+      message.textContent = "Menyimpan…";
+      try { const result = await api.updateProfile(Object.fromEntries(new FormData(form))); message.textContent = result.message; }
+      catch (error) { message.textContent = error.message; }
+    });
+    history.querySelectorAll("[data-cancel-request]").forEach(button => button.addEventListener("click", async () => { if (!confirm("Kirim permintaan pembatalan ke admin?")) return; try { alert((await api.requestOrderChange(button.dataset.cancelRequest, { requestType: "cancel" })).message); } catch (error) { alert(error.message); } }));
+    history.querySelectorAll("[data-review-order]").forEach(button => button.addEventListener("click", async () => { const rating = prompt("Beri rating 1–5:"); if (!rating) return; const comment = prompt("Tulis ulasan singkat (opsional):") || ""; try { alert((await api.createReview(button.dataset.reviewOrder, { rating, comment })).message); button.disabled = true; } catch (error) { alert(error.message); } }));
+    history.querySelectorAll("[data-reschedule-order]").forEach(button => button.addEventListener("click", async () => { const appointmentDate = prompt("Tanggal baru (YYYY-MM-DD):"); const appointmentTime = prompt("Jam baru (HH:MM):"); if (!appointmentDate || !appointmentTime) return; try { alert((await api.requestOrderChange(button.dataset.rescheduleOrder, { requestType: "reschedule", appointmentDate, appointmentTime })).message); } catch (error) { alert(error.message); } }));
     history.querySelectorAll(".confirm-payment").forEach(button => button.addEventListener("click", async () => {
       button.disabled = true;
       button.textContent = "Memeriksa pembayaran…";
@@ -199,7 +211,7 @@ async function renderCart() {
       return;
     }
 
-    el.innerHTML = `${cart.items.map(item => `<div class="cart-row"><img class="cart-row__image" src="${esc(item.image || "assets/img/bag.svg")}" alt="${esc(item.name)}" loading="lazy"><span>${esc(item.name)}<small>${rupiah(item.price)} per sesi</small></span><strong>${rupiah(item.price * item.qty)}</strong><div class="cart-controls"><button class="cart-minus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Kurangi jumlah ${esc(item.name)}">−</button><b>${item.qty}</b><button class="cart-plus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Tambah jumlah ${esc(item.name)}">+</button><button class="cart-remove" data-id="${item.id}" type="button">Hapus</button></div></div>`).join("")}<div class="cart-total"><span>Total layanan</span><strong>${rupiah(cart.subtotal)}</strong></div>${currentUser ? `<form id="checkout-form" class="checkout-form"><h3>Data pemesan</h3><input name="recipientName" placeholder="Nama orang tua" autocomplete="name" required><input name="recipientEmail" type="email" placeholder="Email" autocomplete="email" required><input name="recipientPhone" type="tel" placeholder="Nomor WhatsApp"><textarea name="address" placeholder="Alamat lengkap" required></textarea><select name="shippingMethod"><option value="regular">Sesi di lokasi layanan</option><option value="express">Kunjungan ke rumah</option></select><label>Metode pembayaran<select name="paymentMethod" required><option value="">Pilih metode pembayaran</option><option value="QRIS">QRIS</option><option value="Transfer Bank">Transfer bank</option><option value="Tunai">Tunai saat sesi</option></select></label><p class="payment-note">Setelah pesanan dibuat, instruksi QRIS/transfer akan tampil di riwayat pembayaran. Pembayaran tunai dilakukan kepada petugas saat sesi.</p><button class="button button--primary" type="submit">Buat pesanan</button><p id="checkout-message" class="store-muted" role="status" aria-live="polite"></p></form>` : `<div class="checkout-required"><p>Masuk atau daftar untuk melanjutkan pemesanan.</p><button id="checkout-login" class="button button--primary" type="button">Masuk untuk checkout</button></div>`}`;
+    el.innerHTML = `${cart.items.map(item => `<div class="cart-row"><img class="cart-row__image" src="${esc(item.image || "assets/img/bag.svg")}" alt="${esc(item.name)}" loading="lazy"><span>${esc(item.name)}<small>${rupiah(item.price)} per sesi</small></span><strong>${rupiah(item.price * item.qty)}</strong><div class="cart-controls"><button class="cart-minus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Kurangi jumlah ${esc(item.name)}">−</button><b>${item.qty}</b><button class="cart-plus" data-id="${item.id}" data-qty="${item.qty}" type="button">+</button><button class="cart-remove" data-id="${item.id}" type="button">Hapus</button></div></div>`).join("")}<div class="cart-total"><span>Total layanan</span><strong>${rupiah(cart.subtotal)}</strong></div>${currentUser ? `<form id="checkout-form" class="checkout-form"><h3>Data pemesan</h3><input name="recipientName" placeholder="Nama orang tua" autocomplete="name" required><input name="recipientEmail" type="email" placeholder="Email" autocomplete="email" required><input name="recipientPhone" type="tel" placeholder="Nomor WhatsApp"><textarea name="address" placeholder="Alamat lengkap" required></textarea><input name="couponCode" placeholder="Kode voucher (opsional)" autocomplete="off"><select name="shippingMethod"><option value="regular">Sesi di lokasi layanan</option><option value="express">Kunjungan ke rumah</option></select><label>Metode pembayaran<select name="paymentMethod" required><option value="">Pilih metode pembayaran</option><option value="QRIS">QRIS</option><option value="Transfer Bank">Transfer bank</option><option value="Tunai">Tunai saat sesi</option></select></label><p class="payment-note">Setelah pesanan dibuat, instruksi QRIS/transfer akan tampil di riwayat pembayaran. Pembayaran tunai dilakukan kepada petugas saat sesi.</p><button class="button button--primary" type="submit">Buat pesanan</button><p id="checkout-message" class="store-muted" role="status" aria-live="polite"></p></form>` : `<div class="checkout-required"><p>Masuk atau daftar untuk melanjutkan pemesanan.</p><button id="checkout-login" class="button button--primary" type="button">Masuk untuk checkout</button></div>`}`;
 
     el.querySelectorAll(".cart-minus, .cart-plus").forEach(button => button.addEventListener("click", async () => {
       const change = button.classList.contains("cart-plus") ? 1 : -1;
@@ -225,17 +237,22 @@ async function renderCart() {
       const dateOptions = getScheduleDateOptions();
       dateSelect.innerHTML = dateOptions.map(option => `<option value="${option.value}">${esc(option.label)}</option>`).join("");
       dateSelect.value = dateOptions.some(option => option.value === scheduleSelection.date) ? scheduleSelection.date : dateOptions[0].value;
-      const renderTimeOptions = () => {
-        const slots = getScheduleTimes(dateSelect.value);
+      const renderTimeOptions = async () => {
+        timeSelect.disabled = true;
+        timeSelect.innerHTML = '<option value="">Memeriksa ketersediaan…</option>';
+        let occupiedTimes = [];
+        try { occupiedTimes = (await api.appointmentAvailability(dateSelect.value)).occupiedTimes || []; }
+        catch { /* Validasi akhir tetap dilakukan server saat checkout. */ }
+        const slots = getScheduleTimes(dateSelect.value).filter(time => !occupiedTimes.includes(time));
         timeSelect.innerHTML = slots.length
           ? slots.map(time => `<option value="${time}">${time.replace(":", ".")}</option>`).join("")
-          : '<option value="">Tidak ada jadwal</option>';
+          : '<option value="">Jadwal penuh</option>';
         timeSelect.value = slots.includes(scheduleSelection.time) ? scheduleSelection.time : slots[0];
         scheduleSelection.date = dateSelect.value;
         scheduleSelection.time = timeSelect.value;
         timeSelect.disabled = slots.length === 0;
       };
-      dateSelect.addEventListener("change", renderTimeOptions);
+      dateSelect.addEventListener("change", () => { renderTimeOptions(); });
       timeSelect.addEventListener("change", () => { scheduleSelection.time = timeSelect.value; });
       renderTimeOptions();
       form.onsubmit = async event => {
