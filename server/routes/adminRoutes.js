@@ -38,6 +38,9 @@ router.post("/users", admin.createUser);
 router.patch("/users/:id", admin.updateUser);
 router.patch("/users/:id/role", admin.updateUserRole);
 router.patch("/users/:id/password", admin.updateUserPassword);
+// Alias POST dipakai UI agar aksi tetap diteruskan oleh reverse proxy/hosting
+// yang tidak mengizinkan method DELETE. Route DELETE dipertahankan untuk REST API.
+router.post("/users/:id/delete", admin.deleteUser);
 router.delete("/users/:id", admin.deleteUser);
 router.get("/reviews", admin.listReviews);
 router.patch("/reviews/:id", admin.moderateReview);
