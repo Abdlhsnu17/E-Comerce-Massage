@@ -35,8 +35,9 @@
 }
 @media(max-width:680px){
   .header__inner{gap:8px}
-  .brand{width:clamp(112px,35vw,150px)}
-  .button--nav{min-height:38px;padding-inline:10px;font-size:11px}
+  .brand{width:clamp(112px,35vw,150px);margin-right:auto}
+  .button--nav{margin-left:0;min-height:38px;padding-inline:10px;font-size:11px}
+  .menu-toggle{margin-left:0;flex:0 0 auto}
   .main-nav{gap:0}
   .main-nav .cart-nav{font-size:15px}
   .main-nav .auth-actions{align-items:stretch}

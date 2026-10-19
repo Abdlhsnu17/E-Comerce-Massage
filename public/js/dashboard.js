@@ -6,16 +6,18 @@ const appointmentStatuses = ["Menunggu konfirmasi", "Dikonfirmasi", "Selesai", "
 const menuToggle = document.querySelector("#menu-toggle");
 const dashboardSidebar = document.querySelector("#dashboard-sidebar");
 const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
-function closeSidebar() { dashboardSidebar.classList.remove("is-open"); sidebarBackdrop.classList.remove("is-visible"); menuToggle.setAttribute("aria-expanded", "false"); }
-menuToggle.addEventListener("click", () => { const open = dashboardSidebar.classList.toggle("is-open"); sidebarBackdrop.classList.toggle("is-visible", open); menuToggle.setAttribute("aria-expanded", String(open)); });
+function setSidebarOpen(open) {
+  dashboardSidebar.classList.toggle("is-open", open);
+  sidebarBackdrop.classList.toggle("is-visible", open);
+  menuToggle.classList.toggle("is-active", open);
+  menuToggle.setAttribute("aria-expanded", String(open));
+  menuToggle.setAttribute("aria-label", open ? "Tutup menu" : "Buka menu");
+}
+function closeSidebar() { setSidebarOpen(false); }
+menuToggle.addEventListener("click", () => setSidebarOpen(!dashboardSidebar.classList.contains("is-open")));
 sidebarBackdrop.addEventListener("click", closeSidebar);
 dashboardSidebar.querySelectorAll(".sidebar-link").forEach(link => link.addEventListener("click", closeSidebar));
 document.addEventListener("keydown", event => { if (event.key === "Escape") closeSidebar(); });
-const usersSidebarLink = document.createElement("a");
-usersSidebarLink.className = "sidebar-link";
-usersSidebarLink.href = "#pengguna";
-usersSidebarLink.innerHTML = "◇ <span>Manajemen pengguna</span>";
-dashboardSidebar.insertBefore(usersSidebarLink, dashboardSidebar.lastElementChild);
 const sidebarLinks = [...dashboardSidebar.querySelectorAll(".sidebar-link")];
 const dashboardSections = sidebarLinks.map(link => document.querySelector(link.hash)).filter(Boolean);
 function switchDashboardTab(targetId) {
@@ -30,18 +32,51 @@ function switchDashboardTab(targetId) {
 }
 sidebarLinks.forEach(link => link.addEventListener("click", event => {
   event.preventDefault();
-  switchDashboardTab(link.hash.slice(1));
+  const targetId = link.hash.slice(1);
+  switchDashboardTab(targetId);
+  window.history.replaceState(null, "", `#${targetId}`);
   closeSidebar();
 }));
-switchDashboardTab("ringkasan");
+const initialDashboardTab = sidebarLinks.some(link => link.hash === window.location.hash) ? window.location.hash.slice(1) : "ringkasan";
+switchDashboardTab(initialDashboardTab);
 const dashboardMessage = document.querySelector("#dashboard-message");
 const dashboardContent = document.querySelector("#dashboard-content");
 const accessMessage = document.querySelector("#access-message");
 const serviceForm = document.querySelector("#service-form");
 const serviceEditor = document.querySelector("#service-editor");
+const servicesList = document.querySelector("#services-list");
 let dashboardProducts = [];
 let dashboardUsers = [];
 let currentAdminId = null;
+
+function setupPasswordToggles() {
+  const eyeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';
+  const eyeOffIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1A9 9 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-2.1 2.8M6.2 6.2C3.8 7.8 2.5 12 2.5 12s3.5 6 9.5 6a9.4 9.4 0 0 0 3.1-.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
+  document.querySelectorAll('.service-form-grid input[type="password"]').forEach(input => {
+    const wrapper = document.createElement("span");
+    wrapper.className = "password-input";
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+
+    const button = document.createElement("button");
+    button.className = "password-toggle";
+    button.type = "button";
+    button.setAttribute("aria-label", "Tampilkan password");
+    button.setAttribute("aria-pressed", "false");
+    button.title = "Tampilkan password";
+    button.innerHTML = eyeIcon;
+    button.addEventListener("click", () => {
+      const visible = input.type === "text";
+      input.type = visible ? "password" : "text";
+      button.setAttribute("aria-label", visible ? "Tampilkan password" : "Sembunyikan password");
+      button.setAttribute("aria-pressed", String(!visible));
+      button.title = visible ? "Tampilkan password" : "Sembunyikan password";
+      button.innerHTML = visible ? eyeIcon : eyeOffIcon;
+    });
+    wrapper.appendChild(button);
+  });
+}
 let servicePreviewUrl = null;
 const serviceImagePreview = document.querySelector("#service-image-preview");
 const dashboardIcons = {
@@ -140,6 +175,7 @@ function openServiceEditor(product = null) {
   document.querySelector("#service-form-title").textContent = product ? "Edit layanan" : "Tambah layanan";
   document.querySelector("#save-service-button").textContent = product ? "Simpan perubahan" : "Simpan layanan";
   document.querySelector("#service-form-message").textContent = "";
+  servicesList.hidden = true;
   serviceEditor.hidden = false;
   serviceEditor.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -272,8 +308,9 @@ function openUserForm(user = null) {
   const editing = !!user;
   document.querySelector("#user-form-title").textContent = editing ? `Edit akun ${user.name}` : "Tambah akun baru";
   document.querySelector("#save-user-button").textContent = editing ? "Simpan perubahan" : "Buat akun";
-  ["#user-role-field", "#user-password-field", "#user-password-confirm-field"].forEach(selector => { document.querySelector(selector).hidden = editing; });
-  userForm.elements.role.disabled = editing;
+  document.querySelector("#user-role-field").hidden = false;
+  ["#user-password-field", "#user-password-confirm-field"].forEach(selector => { document.querySelector(selector).hidden = editing; });
+  userForm.elements.role.disabled = editing && Number(user.id) === currentAdminId;
   userForm.elements.password.disabled = editing;
   userForm.elements.confirmPassword.disabled = editing;
   document.querySelector("#user-form-message").textContent = "";
@@ -296,8 +333,13 @@ userForm.addEventListener("submit", async event => {
   message.textContent = values.id ? "Menyimpan perubahan…" : "Membuat akun…";
   try {
     const payload = { name: values.name.trim(), email: values.email.trim(), phone: values.phone.trim() };
-    if (values.id) await api.admin.updateUser(values.id, payload);
-    else await api.admin.createUser({ ...payload, role: values.role, password: values.password });
+    if (values.id) {
+      await api.admin.updateUser(values.id, payload);
+      const previousRole = dashboardUsers.find(user => Number(user.id) === Number(values.id))?.role;
+      if (values.role && values.role !== previousRole) await api.admin.updateUserRole(values.id, values.role);
+    } else {
+      await api.admin.createUser({ ...payload, role: values.role, password: values.password });
+    }
     userForm.reset();
     userForm.hidden = true;
     renderUsers(await api.admin.users());
@@ -383,7 +425,11 @@ userPasswordForm.addEventListener("submit", async event => {
   }
 });
 document.querySelector("#add-service-button").addEventListener("click", () => openServiceEditor());
-document.querySelector("#cancel-service-edit").addEventListener("click", () => { serviceEditor.hidden = true; setServiceImagePreview(""); });
+document.querySelector("#cancel-service-edit").addEventListener("click", () => {
+  serviceEditor.hidden = true;
+  servicesList.hidden = false;
+  setServiceImagePreview("");
+});
 serviceForm.elements.imageFile.addEventListener("change", () => {
   const file = serviceForm.elements.imageFile.files[0];
   if (!file) return;
@@ -418,6 +464,7 @@ serviceForm.addEventListener("submit", async event => {
     if (productId) await api.admin.updateProduct(productId, payload);
     else await api.admin.createProduct(payload);
     serviceEditor.hidden = true;
+    servicesList.hidden = false;
     setServiceImagePreview("");
     await refreshDashboard();
   } catch (error) {
@@ -449,4 +496,5 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
   await api.logout();
   window.location.href = "/";
 });
+setupPasswordToggles();
 initDashboard();
