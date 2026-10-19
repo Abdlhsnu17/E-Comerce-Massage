@@ -204,13 +204,14 @@ function openServiceEditor(product = null) {
 async function refreshDashboard() {
   dashboardMessage.textContent = "Memuat data dashboard…";
   try {
-    const [stats, orders, products, categories, siteContent, users, reviews] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.categories(), api.admin.siteContent(), api.admin.users(), api.admin.reviews()]);
+    const [stats, orders, products, categories, siteContent, users] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.categories(), api.admin.siteContent(), api.admin.users()]);
     renderMetrics(stats);
     renderOrders(orders);
     renderServices(products);
     renderServiceCategories(categories);
     renderUsers(users);
-    renderReviews(reviews);
+    try { renderReviews(await api.admin.reviews()); }
+    catch { document.querySelector("#reviews-table").innerHTML = ""; document.querySelector("#reviews-empty").hidden = false; }
     Object.entries(siteContent).forEach(([name, value]) => {
       const field = document.querySelector(`#site-content-form [name="${name}"]`);
       if (field) field.value = value || "";
