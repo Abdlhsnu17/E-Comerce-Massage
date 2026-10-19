@@ -11,7 +11,8 @@ const publicUser = row => ({
   name: row.name,
   email: row.email,
   phone: row.phone,
-  role: row.role || "user"
+  role: row.role || "user",
+  sessionVersion: row.session_version ?? row.sessionVersion ?? 0
 });
 
 /** Menaruh JWT di cookie httpOnly lalu memindahkan data belanja tamu ke akun. */
@@ -37,8 +38,8 @@ async function register(req, res, next) {
     const email = (req.body.email || "").trim().toLowerCase();
     const password = req.body.password || "";
 
-    if (!name || !email || password.length < 6) {
-      return res.status(400).json({ message: "Nama, email, dan password minimal 6 karakter wajib diisi." });
+    if (!name || !email || password.length < 12) {
+      return res.status(400).json({ message: "Nama, email, dan password minimal 12 karakter wajib diisi." });
     }
 
     const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
@@ -92,7 +93,7 @@ async function changePassword(req, res, next) {
       return res.status(400).json({ message: "Password saat ini tidak cocok." });
     }
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.user.id]);
+    await pool.query("UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?", [passwordHash, req.user.id]);
     res.json({ message: "Password berhasil diperbarui." });
   } catch (error) {
     next(error);
@@ -138,7 +139,7 @@ async function resetPassword(req, res, next) {
       await connection.rollback();
       return res.status(400).json({ message: "Tautan reset tidak valid atau sudah kedaluwarsa." });
     }
-    await connection.query("UPDATE users SET password_hash = ? WHERE id = ?", [await bcrypt.hash(newPassword, 12), tokens[0].user_id]);
+    await connection.query("UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?", [await bcrypt.hash(newPassword, 12), tokens[0].user_id]);
     await connection.query("DELETE FROM password_reset_tokens WHERE user_id = ?", [tokens[0].user_id]);
     await connection.commit();
     res.json({ message: "Password berhasil diatur ulang. Silakan masuk." });

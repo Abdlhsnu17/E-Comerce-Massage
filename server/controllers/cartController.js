@@ -15,7 +15,7 @@ async function readCart(cartId, connection = pool) {
   const [items] = await connection.query(
     `SELECT ci.product_id AS id, ci.quantity AS qty,
             p.name, c.name AS category, p.price, p.old_price AS oldPrice,
-            p.image, p.stock
+            p.image, p.stock, p.duration_minutes AS durationMinutes
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
        JOIN categories c ON c.id = p.category_id

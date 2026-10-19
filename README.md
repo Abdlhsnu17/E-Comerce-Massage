@@ -93,6 +93,30 @@ npm install
 mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 ```
 
+Untuk database lama yang sudah berjalan, terapkan migrasi jadwal terbaru:
+
+```bash
+mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/013_booking_schedule.sql
+```
+
+Lalu terapkan audit log admin:
+
+```bash
+mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/014_admin_audit_logs.sql
+```
+
+Lalu terapkan pembatalan sesi setelah perubahan password:
+
+```bash
+mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/015_session_version.sql
+```
+
+Lalu terapkan dukungan multi-terapis:
+
+```bash
+mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/016_therapists.sql
+```
+
 3. Jalankan server:
 
 ```bash
@@ -120,7 +144,7 @@ Gunakan Node.js 20+, MySQL/MariaDB, dan Nginx. Aplikasi hanya mendengarkan di `1
 3. Buat direktori upload dan berikan akses hanya ke user aplikasi: `sudo install -d -o www-data -g www-data /var/www/aera-baby-spa/public/uploads`.
 4. Salin [unit systemd](deploy/aera-baby-spa.service) ke `/etc/systemd/system/aera-baby-spa.service`; sesuaikan path Node bila perlu. Lalu jalankan `sudo systemctl daemon-reload && sudo systemctl enable --now aera-baby-spa`.
 5. Salin [konfigurasi Nginx](deploy/nginx-aera-baby-spa.conf), ganti domain dan lokasi sertifikat TLS, validasi dengan `sudo nginx -t`, lalu reload Nginx.
-6. Pastikan `https://domain-anda/health` membalas `{"status":"ok"}`. Backup database dan `public/uploads/` secara berkala.
+6. Pastikan `https://domain-anda/health` membalas `{"status":"ok"}` dan `https://domain-anda/ready` membalas `{"status":"ready"}`. Endpoint `ready` juga memeriksa koneksi database. Backup database dan `public/uploads/` secara berkala.
 
 Jangan membuka port 3000 dari internet. Buka hanya 80/443 pada firewall dan gunakan sertifikat TLS yang aktif sebelum mengarahkan domain produksi.
 
@@ -211,6 +235,7 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | POST | `/api/orders` | Buat pesanan baru |
 | POST | `/api/orders/:id/payment-proof` | Unggah bukti transfer bank |
 | POST | `/api/orders/:id/payment/refresh` | Sinkronkan status QRIS dengan gateway |
+| POST | `/api/orders/:id/change-request` | Ajukan perubahan jadwal atau pembatalan |
 | GET | `/api/favorites` | Daftar wishlist |
 | POST | `/api/favorites/:productId` | Tambah atau hapus favorit |
 | POST | `/api/newsletter` | Daftar newsletter |
@@ -220,6 +245,13 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | PATCH/DELETE | `/api/admin/products/:id` | Edit atau hapus layanan |
 | PATCH | `/api/admin/orders/:id/payment-status` | Update status pembayaran |
 | PATCH | `/api/admin/orders/:id/appointment-status` | Update status sesi |
+| GET/PATCH | `/api/admin/order-change-requests[/:id]` | Lihat dan proses permintaan perubahan pelanggan |
+| GET/POST/PATCH/DELETE | `/api/admin/coupons[/:id]` | Kelola voucher dan periode promo |
+| GET/PATCH | `/api/admin/schedule-settings` | Kelola jam dan hari operasional booking |
+| GET/DELETE | `/api/admin/newsletter-subscribers[/:id]` | Lihat atau hapus subscriber newsletter |
+| GET | `/api/admin/reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD` | Laporan penjualan berdasarkan periode |
+| GET | `/api/admin/audit-logs` | Riwayat perubahan yang dilakukan admin |
+| GET/POST/PATCH/DELETE | `/api/admin/therapists[/:id]` | Kelola terapis aktif dan kapasitas booking |
 
 ## Data dan aturan bisnis
 
@@ -237,7 +269,9 @@ Berikut endpoint penting yang tersedia di aplikasi:
 - File gambar yang diunggah dibatasi ke format JPG, PNG, WEBP, atau GIF.
 - File upload lokal biasanya diabaikan oleh Git.
 - Aplikasi menggunakan cookie HTTP-only untuk sesi dan autentikasi.
+- Semua request API yang mengubah data memakai token CSRF pada header; frontend mengelolanya otomatis. Webhook pembayaran Midtrans tetap diamankan oleh signature gateway.
 - Reset password menggunakan token sekali pakai yang berlaku 30 menit. Atur variabel SMTP di `.env` untuk pengiriman email. Dalam development tanpa SMTP, tautan reset dicetak di terminal server; production akan menolak pengiriman sampai SMTP dikonfigurasi.
+- Dengan SMTP aktif, pelanggan menerima email setelah booking dibuat, status pesanan/pembayaran/jadwal diubah, serta permintaan ubah jadwal atau pembatalan diproses. Pengiriman email berjalan setelah transaksi tersimpan sehingga gangguan SMTP tidak membatalkan pesanan.
 
 ## Troubleshooting
 

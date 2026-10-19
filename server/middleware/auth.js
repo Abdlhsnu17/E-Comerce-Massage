@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { TOKEN_COOKIE } = require("./session");
+const { TOKEN_COOKIE, COOKIE_OPTIONS } = require("./session");
 const { pool } = require("../config/db");
 
 const SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : crypto.randomBytes(32).toString("hex"));
@@ -15,7 +15,7 @@ if (SECRET.length < 32) {
 }
 
 function signToken(user) {
-  return jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role || "user" }, SECRET, {
+  return jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role || "user", sv: Number(user.sessionVersion) || 0 }, SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d"
   });
 }
@@ -32,12 +32,16 @@ function readToken(req) {
 }
 
 /** Mengisi req.user bila token valid, tetapi tetap melanjutkan bila tidak ada. */
-function optionalAuth(req, _res, next) {
+async function optionalAuth(req, res, next) {
   const token = readToken(req);
   if (token) {
     try {
-      req.user = jwt.verify(token, SECRET);
-    } catch {
+      const payload = jwt.verify(token, SECRET);
+      const [users] = await pool.query("SELECT session_version AS sessionVersion FROM users WHERE id = ?", [payload.id]);
+      if (users[0] && Number(users[0].sessionVersion) === Number(payload.sv || 0)) req.user = payload;
+      else res.clearCookie(TOKEN_COOKIE, { ...COOKIE_OPTIONS, maxAge: undefined });
+    } catch (error) {
+      if (error.code) return next(error);
       /* token kedaluwarsa: perlakukan sebagai pengunjung tamu */
     }
   }

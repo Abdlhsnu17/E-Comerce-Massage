@@ -2,6 +2,8 @@ const { pool } = require("../config/db");
 const fs = require("fs/promises");
 const { findOrCreateCart } = require("./cartController");
 const { createQris, getStatus, verifyNotification, localStatus, integerAmount } = require("../services/midtransQris");
+const { getBookingSettings, availableTimesForTherapists, assignAvailableTherapist } = require("../services/bookingSchedule");
+const { notifyOrderUpdate } = require("../services/orderMailer");
 
 const SHIPPING_COST = { regular: 0, express: 0 };
 const PAYMENT_METHODS = ["QRIS", "Transfer Bank", "Tunai"];
@@ -159,7 +161,7 @@ async function createOrder(req, res, next) {
     // Isi keranjang dan harga diambil langsung dari database, bukan dari browser.
     const cartId = await findOrCreateCart(req, connection);
     const [lines] = await connection.query(
-      `SELECT p.id, p.name, p.image, p.price, p.stock, ci.quantity AS qty
+      `SELECT p.id, p.name, p.image, p.price, p.stock, p.duration_minutes AS durationMinutes, ci.quantity AS qty
          FROM cart_items ci
          JOIN products p ON p.id = ci.product_id
         WHERE ci.cart_id = ? AND p.is_active = 1
@@ -170,11 +172,13 @@ async function createOrder(req, res, next) {
     if (!lines.length) throw new HttpError(400, "Keranjang masih kosong.");
 
     let subtotal = 0;
+    let serviceDurationMinutes = 0;
     for (const line of lines) {
       if (line.stock < line.qty) {
         throw new HttpError(409, `Stok ${line.name} tinggal ${line.stock}.`);
       }
       subtotal += line.price * line.qty;
+      serviceDurationMinutes += (Number(line.durationMinutes) || 60) * line.qty;
     }
 
     const shippingCost = SHIPPING_COST[shippingMethod];
@@ -200,16 +204,22 @@ async function createOrder(req, res, next) {
 
     // Satu terapis/sesi hanya menerima satu booking aktif pada waktu yang sama.
     // Pemeriksaan dilakukan di dalam transaksi agar checkout bersamaan tetap aman.
+    const settings = await getBookingSettings(connection);
+    const [therapists] = await connection.query("SELECT id, name FROM therapists WHERE is_active = 1 ORDER BY id FOR UPDATE");
+    if (!therapists.length) throw new HttpError(409, "Belum ada terapis aktif untuk menerima booking.");
     const [occupiedSlots] = await connection.query(
-      `SELECT id FROM orders
-        WHERE appointment_date = ? AND appointment_time = ?
+      `SELECT id, therapist_id AS therapistId, TIME_FORMAT(appointment_time, '%H:%i') AS time,
+              service_duration_minutes AS durationMinutes FROM orders
+        WHERE appointment_date = ?
           AND status <> 'Dibatalkan' AND appointment_status <> 'Dibatalkan'
         FOR UPDATE`,
-      [appointmentDate, appointmentTime]
+      [appointmentDate]
     );
-    if (occupiedSlots.length) {
-      throw new HttpError(409, "Slot jadwal tersebut baru saja terisi. Silakan pilih jam lain.");
+    const validSlots = availableTimesForTherapists({ date: appointmentDate, durationMinutes: serviceDurationMinutes, settings, bookings: occupiedSlots, therapists });
+    if (!validSlots.includes(appointmentTime)) {
+      throw new HttpError(409, "Slot tidak tersedia, berada di luar jam operasional, atau bertabrakan dengan durasi sesi lain.");
     }
+    const assignedTherapist = assignAvailableTherapist({ time: appointmentTime, durationMinutes: serviceDurationMinutes, settings, bookings: occupiedSlots, therapists });
 
     const initialOrderStatus = paymentMethod === "Tunai" ? "Menunggu konfirmasi" : "Menunggu pembayaran";
     const paymentDueAt = paymentMethod === "QRIS"
@@ -218,12 +228,12 @@ async function createOrder(req, res, next) {
     const [orderResult] = await connection.query(
       `INSERT INTO orders
         (order_code, user_id, status, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method, payment_due_at,
-         appointment_date, appointment_time, service_location,
+         appointment_date, appointment_time, service_duration_minutes, therapist_id, service_location,
          recipient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
         orderCode, req.user.id, initialOrderStatus, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
-        shippingMethod, paymentMethod, paymentDueAt, appointmentDate, appointmentTime, serviceLocation,
+        shippingMethod, paymentMethod, paymentDueAt, appointmentDate, appointmentTime, serviceDurationMinutes, assignedTherapist.id, serviceLocation,
         recipientName, recipientEmail, recipientPhone || null,
         address, city || null, zip || null, notes || null
       ]
@@ -262,6 +272,14 @@ async function createOrder(req, res, next) {
     await connection.query("DELETE FROM cart_items WHERE cart_id = ?", [cartId]);
 
     await connection.commit();
+    notifyOrderUpdate({
+      to: recipientEmail,
+      recipientName,
+      orderCode,
+      subject: `Booking ${orderCode} diterima`,
+      message: "Booking Anda sudah kami terima. Silakan selesaikan pembayaran sesuai metode yang dipilih.",
+      details: [`Jadwal: ${appointmentDate} pukul ${appointmentTime}`, `Metode pembayaran: ${paymentMethod}`]
+    });
     const details = await getPaymentDetails();
     res.status(201).json({
       id: orderResult.insertId,
@@ -294,14 +312,18 @@ async function getAvailability(req, res, next) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ message: "Tanggal jadwal tidak valid." });
     }
+    const durationMinutes = Math.min(480, Math.max(1, Number(req.query.durationMinutes) || 60));
+    const settings = await getBookingSettings(pool);
+    const [therapists] = await pool.query("SELECT id, name FROM therapists WHERE is_active = 1 ORDER BY id");
     const [rows] = await pool.query(
-      `SELECT TIME_FORMAT(appointment_time, '%H:%i') AS time
+      `SELECT therapist_id AS therapistId, TIME_FORMAT(appointment_time, '%H:%i') AS time,
+              service_duration_minutes AS durationMinutes
          FROM orders
         WHERE appointment_date = ? AND status <> 'Dibatalkan'
           AND appointment_status <> 'Dibatalkan'`,
       [date]
     );
-    res.json({ date, occupiedTimes: rows.map(row => row.time) });
+    res.json({ date, durationMinutes, settings, therapistCount: therapists.length, availableTimes: availableTimesForTherapists({ date, durationMinutes, settings, bookings: rows, therapists }) });
   } catch (error) {
     next(error);
   }
@@ -314,14 +336,35 @@ async function requestOrderChange(req, res, next) {
     const reason = String(req.body.reason || "").trim().slice(0, 500) || null;
     if (!Number.isInteger(orderId) || !["reschedule", "cancel"].includes(requestType)) return res.status(400).json({ message: "Permintaan tidak valid." });
     const [orders] = await pool.query(
-      `SELECT id FROM orders WHERE id = ? AND user_id = ? AND status <> 'Dibatalkan' AND appointment_status <> 'Selesai'`,
+      `SELECT id, therapist_id AS therapistId, service_duration_minutes AS durationMinutes FROM orders WHERE id = ? AND user_id = ? AND status <> 'Dibatalkan' AND appointment_status <> 'Selesai'`,
       [orderId, req.user.id]
     );
     if (!orders.length) return res.status(404).json({ message: "Pesanan tidak dapat diubah." });
+    const [pending] = await pool.query(
+      "SELECT id FROM order_change_requests WHERE order_id = ? AND status = 'Menunggu' LIMIT 1",
+      [orderId]
+    );
+    if (pending.length) return res.status(409).json({ message: "Masih ada permintaan perubahan yang menunggu keputusan admin." });
     let date = null, time = null;
     if (requestType === "reschedule") {
       date = String(req.body.appointmentDate || ""); time = String(req.body.appointmentTime || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ message: "Tanggal dan jam baru wajib diisi." });
+      const [year, month, day] = date.split("-").map(Number);
+      const [hour, minute] = time.split(":").map(Number);
+      const requestedAt = new Date(year, month - 1, day, hour, minute);
+      if (requestedAt.getFullYear() !== year || requestedAt.getMonth() !== month - 1 || requestedAt.getDate() !== day || requestedAt.getHours() !== hour || requestedAt.getMinutes() !== minute || requestedAt <= new Date()) {
+        return res.status(400).json({ message: "Pilih jadwal baru yang belum berlalu." });
+      }
+      const settings = await getBookingSettings(pool);
+      const [therapists] = await pool.query("SELECT id, name FROM therapists WHERE is_active = 1 ORDER BY id");
+      const [occupied] = await pool.query(
+        `SELECT therapist_id AS therapistId, TIME_FORMAT(appointment_time, '%H:%i') AS time, service_duration_minutes AS durationMinutes
+           FROM orders WHERE id <> ? AND appointment_date = ?
+            AND status <> 'Dibatalkan' AND appointment_status <> 'Dibatalkan'`,
+        [orderId, date]
+      );
+      const validSlots = availableTimesForTherapists({ date, durationMinutes: orders[0].durationMinutes, settings, bookings: occupied, therapists });
+      if (!validSlots.includes(time)) return res.status(409).json({ message: "Jadwal baru tidak tersedia atau bertabrakan dengan sesi lain." });
     }
     await pool.query(
       `INSERT INTO order_change_requests (order_id, user_id, request_type, requested_date, requested_time, reason)
@@ -377,6 +420,8 @@ async function listOrders(req, res, next) {
               appointment_date AS appointmentDate,
               TIME_FORMAT(appointment_time, '%H:%i') AS appointmentTime,
               service_location AS serviceLocation, appointment_status AS appointmentStatus,
+              (SELECT r.status FROM order_change_requests r WHERE r.order_id = orders.id ORDER BY r.created_at DESC LIMIT 1) AS changeRequestStatus,
+              (SELECT r.request_type FROM order_change_requests r WHERE r.order_id = orders.id ORDER BY r.created_at DESC LIMIT 1) AS changeRequestType,
               created_at AS createdAt
          FROM orders WHERE user_id = ? ORDER BY created_at DESC`,
       [req.user.id]

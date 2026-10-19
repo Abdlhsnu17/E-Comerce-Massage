@@ -2,6 +2,7 @@ const crypto = require("crypto");
 
 const SESSION_COOKIE = "lokamart_sid";
 const TOKEN_COOKIE = "lokamart_token";
+const CSRF_COOKIE = "lokamart_csrf";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -22,6 +23,14 @@ function attachSession(req, res, next) {
     res.cookie(SESSION_COOKIE, token, COOKIE_OPTIONS);
   }
   req.sessionToken = token;
+  let csrfToken = req.cookies?.[CSRF_COOKIE];
+  if (!csrfToken || !/^[a-f0-9]{64}$/.test(csrfToken)) {
+    csrfToken = crypto.randomBytes(32).toString("hex");
+    // Token ini sengaja dapat dibaca JavaScript agar dikirim kembali melalui header.
+    // Cookie autentikasi utama tetap HTTP-only.
+    res.cookie(CSRF_COOKIE, csrfToken, { ...COOKIE_OPTIONS, httpOnly: false });
+  }
+  req.csrfToken = csrfToken;
   next();
 }
 
@@ -32,4 +41,4 @@ function owner(req) {
     : { column: "session_token", value: req.sessionToken };
 }
 
-module.exports = { attachSession, owner, SESSION_COOKIE, TOKEN_COOKIE, COOKIE_OPTIONS };
+module.exports = { attachSession, owner, SESSION_COOKIE, TOKEN_COOKIE, CSRF_COOKIE, COOKIE_OPTIONS };

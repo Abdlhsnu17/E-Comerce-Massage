@@ -1,0 +1,18 @@
+-- Jadwal operasional dan snapshot durasi booking.
+ALTER TABLE orders
+  ADD COLUMN service_duration_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 60 AFTER appointment_time;
+
+CREATE TABLE booking_settings (
+  id TINYINT UNSIGNED NOT NULL,
+  open_time TIME NOT NULL DEFAULT '09:00:00',
+  close_time TIME NOT NULL DEFAULT '17:00:00',
+  slot_interval_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+  buffer_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 15,
+  advance_days SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+  operating_days VARCHAR(20) NOT NULL DEFAULT '1,2,3,4,5,6',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO booking_settings (id) VALUES (1)
+ON DUPLICATE KEY UPDATE id = VALUES(id);

@@ -22,4 +22,5 @@ test("app exposes a database-free health route", () => {
   assert.equal(typeof app, "function");
   assert.equal(app.get("x-powered-by"), false);
   assert.ok(app._router.stack.some(layer => layer.route?.path === "/health"));
+  assert.ok(app._router.stack.some(layer => layer.route?.path === "/ready"));
 });

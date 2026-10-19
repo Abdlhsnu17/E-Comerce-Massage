@@ -1,7 +1,11 @@
 const api = {
+  csrfToken() {
+    return document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("lokamart_csrf="))?.slice("lokamart_csrf=".length) || "";
+  },
   async request(path, options = {}) {
     const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
-    const headers = { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...(options.headers || {}) };
+    const unsafe = !["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase());
+    const headers = { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...(unsafe ? { "X-CSRF-Token": api.csrfToken() } : {}), ...(options.headers || {}) };
     const response = await fetch(`/api${path}`, { credentials: "include", ...options, headers });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || "Permintaan gagal.");
@@ -34,7 +38,7 @@ const api = {
   updateProfile: body => api.request("/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
   logout: () => api.request("/auth/logout", { method: "POST" }),
   orders: () => api.request("/orders"),
-  appointmentAvailability: date => api.request(`/appointments/availability?date=${encodeURIComponent(date)}`),
+  appointmentAvailability: (date, durationMinutes = 60) => api.request(`/appointments/availability?date=${encodeURIComponent(date)}&durationMinutes=${encodeURIComponent(durationMinutes)}`),
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
   requestOrderChange: (orderId, body) => api.request(`/orders/${orderId}/change-request`, { method: "POST", body: JSON.stringify(body) }),
   createReview: (orderId, body) => api.request(`/orders/${orderId}/review`, { method: "POST", body: JSON.stringify(body) }),
@@ -47,11 +51,17 @@ const api = {
     createProduct: body => api.request("/admin/products", { method: "POST", body: JSON.stringify(body) }),
     updateProduct: (id, body) => api.request(`/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     deleteProduct: id => api.request(`/admin/products/${id}`, { method: "DELETE" }),
+    categories: () => api.request("/admin/categories"),
+    createCategory: body => api.request("/admin/categories", { method: "POST", body: JSON.stringify(body) }),
+    updateCategory: (id, body) => api.request(`/admin/categories/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    deleteCategory: id => api.request(`/admin/categories/${id}`, { method: "DELETE" }),
     uploadImage: file => { const body = new FormData(); body.append("image", file); return api.request("/admin/uploads/images", { method: "POST", body }); },
     setOrderStatus: (id, status) => api.request(`/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setPaymentStatus: (id, status) => api.request(`/admin/orders/${id}/payment-status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setAppointmentStatus: (id, status) => api.request(`/admin/orders/${id}/appointment-status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,cancelOrder: id => api.request(`/admin/orders/${id}`, { method: "DELETE" })
+    ,orderChangeRequests: () => api.request("/admin/order-change-requests")
+    ,reviewOrderChangeRequest: (id, body) => api.request(`/admin/order-change-requests/${id}`, { method: "PATCH", body: JSON.stringify(body) })
     ,announcements: () => api.request("/admin/announcements")
     ,createAnnouncement: body => api.request("/admin/announcements", { method: "POST", body: JSON.stringify(body) })
     ,updateAnnouncement: (id, body) => api.request(`/admin/announcements/${id}`, { method: "PATCH", body: JSON.stringify(body) })
@@ -66,5 +76,19 @@ const api = {
     ,deleteUser: id => api.request(`/admin/users/${id}`, { method: "DELETE" })
     ,reviews: () => api.request("/admin/reviews")
     ,moderateReview: (id, isPublished) => api.request(`/admin/reviews/${id}`, { method: "PATCH", body: JSON.stringify({ isPublished }) })
+    ,coupons: () => api.request("/admin/coupons")
+    ,createCoupon: body => api.request("/admin/coupons", { method: "POST", body: JSON.stringify(body) })
+    ,updateCoupon: (id, body) => api.request(`/admin/coupons/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+    ,deleteCoupon: id => api.request(`/admin/coupons/${id}`, { method: "DELETE" })
+    ,scheduleSettings: () => api.request("/admin/schedule-settings")
+    ,updateScheduleSettings: body => api.request("/admin/schedule-settings", { method: "PATCH", body: JSON.stringify(body) })
+    ,therapists: () => api.request("/admin/therapists")
+    ,createTherapist: body => api.request("/admin/therapists", { method: "POST", body: JSON.stringify(body) })
+    ,updateTherapist: (id, body) => api.request(`/admin/therapists/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+    ,deleteTherapist: id => api.request(`/admin/therapists/${id}`, { method: "DELETE" })
+    ,newsletterSubscribers: (q = "", page = 1, limit = 50) => api.request(`/admin/newsletter-subscribers?q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`)
+    ,removeNewsletterSubscriber: id => api.request(`/admin/newsletter-subscribers/${id}`, { method: "DELETE" })
+    ,salesReport: (from, to) => api.request(`/admin/reports/sales?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+    ,auditLogs: (page = 1) => api.request(`/admin/audit-logs?page=${page}`)
   }
 };

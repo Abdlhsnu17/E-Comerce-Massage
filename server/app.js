@@ -5,6 +5,8 @@ const cookieParser = require("cookie-parser");
 const routes = require("./routes");
 const { attachSession } = require("./middleware/session");
 const { optionalAuth } = require("./middleware/auth");
+const { verifyCsrf } = require("./middleware/csrf");
+const { pool } = require("./config/db");
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
@@ -31,12 +33,20 @@ function createApp() {
 
   // Probe ini tidak menyentuh database, sesi, maupun autentikasi.
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/ready", async (_req, res) => {
+    try {
+      await pool.query("SELECT 1");
+      res.json({ status: "ready" });
+    } catch {
+      res.status(503).json({ status: "not_ready" });
+    }
+  });
 
   // Session dan auth opsional dipasang sekali untuk seluruh API.
   app.use("/api", (req, res, next) => {
     res.set("Cache-Control", "no-store");
     next();
-  }, attachSession, optionalAuth, routes);
+  }, attachSession, verifyCsrf, optionalAuth, routes);
 
   app.use("/api", (_req, res) => {
     res.status(404).json({ message: "Endpoint tidak ditemukan." });
