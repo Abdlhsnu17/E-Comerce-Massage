@@ -136,22 +136,27 @@ async function loadStore() {
 }
 
 function paymentInstructions(order) {
+  const deadline = order.paymentDueAt
+    ? new Date(order.paymentDueAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })
+    : "";
+  const deadlineCopy = deadline ? `<small class="payment-deadline">Bayar sebelum ${esc(deadline)}. Setelah itu slot dilepas otomatis.</small>` : "";
   if (order.paymentMethod === "QRIS") {
     const hasQrisImage = Boolean(order.paymentDetails?.qrisImageUrl);
     const qrisImage = hasQrisImage ? `<img class="qris-code qris-code--image" src="${esc(order.paymentDetails.qrisImageUrl)}" alt="Barcode QRIS Aera Baby Spa">` : `<div class="qris-code" aria-label="Penanda QRIS belum dikonfigurasi"><span>QRIS</span><small>Belum diatur</small></div>`;
     const message = hasQrisImage ? "Scan QR ini dengan aplikasi pembayaran Anda. Nominal sudah terisi otomatis." : "QRIS dinamis belum tersedia. Hubungi petugas.";
-    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p><small class="payment-auto-status">Status pembayaran diperiksa otomatis…</small></div></div>`;
+    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p>${deadlineCopy}<small class="payment-auto-status">Status pembayaran diperiksa otomatis…</small></div></div>`;
   }
   if (order.paymentMethod === "Transfer Bank") {
     const details = order.paymentDetails || {};
-    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p><small>Status akan diperbarui admin setelah dana diterima.</small></div></div>`;
+    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p>${deadlineCopy}<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti transfer<input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required></label><button class="button button--primary" type="submit">Kirim bukti transfer</button><small role="status">Status akan menjadi “Menunggu verifikasi”.</small></form></div></div>`;
   }
   return `<div class="payment-instructions"><div><strong>Bayar tunai</strong><p>Siapkan <b>${rupiah(order.total)}</b> dan lakukan pembayaran kepada petugas saat sesi berlangsung.</p></div></div>`;
 }
 
 function invoiceMarkup(order) {
   const items = (order.items || []).map(item => `<li><span>${esc(item.name)} × ${Number(item.qty)}</span><b>${rupiah(item.lineTotal ?? item.price * item.qty)}</b></li>`).join("");
-  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>INVOICE</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${window.invoiceExports.actions(order.id)}</article>`;
+  const finalInvoice = ["Dibayar", "Dikembalikan"].includes(order.paymentStatus);
+  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>${finalInvoice ? "INVOICE" : "RINGKASAN BOOKING"}</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${finalInvoice ? window.invoiceExports.actions(order.id) : ""}</article>`;
 }
 
 async function renderOrderHistory() {
@@ -168,7 +173,7 @@ async function renderOrderHistory() {
     })));
     history.hidden = false;
     const customerProfile = await api.profile().catch(() => ({}));
-    history.innerHTML = `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details><div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}${order.status === "Selesai" && order.appointmentStatus === "Selesai" ? `<div class="order-change-actions"><button type="button" data-review-order="${order.id}">Beri ulasan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
+    history.innerHTML = `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details><div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p></div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}${order.status === "Selesai" && order.appointmentStatus === "Selesai" ? `<div class="order-change-actions"><button type="button" data-review-order="${order.id}">Beri ulasan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
     history.querySelector("#customer-profile-form").addEventListener("submit", async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -180,11 +185,15 @@ async function renderOrderHistory() {
     history.querySelectorAll("[data-cancel-request]").forEach(button => button.addEventListener("click", async () => { if (!confirm("Kirim permintaan pembatalan ke admin?")) return; try { alert((await api.requestOrderChange(button.dataset.cancelRequest, { requestType: "cancel" })).message); } catch (error) { alert(error.message); } }));
     history.querySelectorAll("[data-review-order]").forEach(button => button.addEventListener("click", async () => { const rating = prompt("Beri rating 1–5:"); if (!rating) return; const comment = prompt("Tulis ulasan singkat (opsional):") || ""; try { alert((await api.createReview(button.dataset.reviewOrder, { rating, comment })).message); button.disabled = true; } catch (error) { alert(error.message); } }));
     history.querySelectorAll("[data-reschedule-order]").forEach(button => button.addEventListener("click", async () => { const appointmentDate = prompt("Tanggal baru (YYYY-MM-DD):"); const appointmentTime = prompt("Jam baru (HH:MM):"); if (!appointmentDate || !appointmentTime) return; try { alert((await api.requestOrderChange(button.dataset.rescheduleOrder, { requestType: "reschedule", appointmentDate, appointmentTime })).message); } catch (error) { alert(error.message); } }));
-    history.querySelectorAll(".confirm-payment").forEach(button => button.addEventListener("click", async () => {
+    history.querySelectorAll(".payment-proof-form").forEach(form => form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const button = form.querySelector("button");
+      const status = form.querySelector('[role="status"]');
+      const file = form.elements.image.files[0];
       button.disabled = true;
-      button.textContent = "Memeriksa pembayaran…";
-      try { await api.confirmPayment(button.dataset.paymentId); await renderOrderHistory(); }
-      catch (error) { alert(error.message); button.disabled = false; button.textContent = "Saya sudah transfer"; }
+      status.textContent = "Mengirim bukti transfer…";
+      try { await api.uploadPaymentProof(form.dataset.proofOrder, file); await renderOrderHistory(); }
+      catch (error) { status.textContent = error.message; button.disabled = false; }
     }));
     const pendingQris = orders.filter(order => order.paymentMethod === "QRIS" && order.paymentStatus === "Menunggu pembayaran");
     if (pendingQris.length) {
@@ -228,6 +237,14 @@ async function renderCart() {
       const locationSelect = form.querySelector('[name="shippingMethod"]');
       locationSelect.name = "serviceLocation";
       locationSelect.innerHTML = '<option value="studio">Datang ke studio</option><option value="home">Kunjungan ke rumah</option>';
+      const paymentSelect = form.querySelector('[name="paymentMethod"]');
+      const syncPaymentMethods = () => {
+        const cashOption = paymentSelect.querySelector('option[value="Tunai"]');
+        cashOption.disabled = locationSelect.value === "home";
+        if (cashOption.disabled && paymentSelect.value === "Tunai") paymentSelect.value = "";
+      };
+      locationSelect.addEventListener("change", syncPaymentMethods);
+      syncPaymentMethods();
       const bookingFields = document.createElement("div");
       bookingFields.className = "booking-fields";
       bookingFields.innerHTML = '<label>Hari dan tanggal sesi<select name="appointmentDate" required></select></label><label>Jam sesi<select name="appointmentTime" required></select></label><p class="booking-hours">Pilihan jadwal otomatis tersedia pukul 09.00–17.00.</p>';

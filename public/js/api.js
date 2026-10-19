@@ -38,7 +38,7 @@ const api = {
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
   requestOrderChange: (orderId, body) => api.request(`/orders/${orderId}/change-request`, { method: "POST", body: JSON.stringify(body) }),
   createReview: (orderId, body) => api.request(`/orders/${orderId}/review`, { method: "POST", body: JSON.stringify(body) }),
-  confirmPayment: orderId => api.request(`/orders/${orderId}/payment`, { method: "PATCH" }),
+  uploadPaymentProof: (orderId, file) => { const body = new FormData(); body.append("image", file); return api.request(`/orders/${orderId}/payment-proof`, { method: "POST", body }); },
   refreshPayment: orderId => api.request(`/orders/${orderId}/payment/refresh`, { method: "POST" }),
   admin: {
     stats: () => api.request("/admin/stats"),

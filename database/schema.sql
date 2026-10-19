@@ -170,18 +170,21 @@ CREATE TABLE orders (
   id                INT UNSIGNED   NOT NULL AUTO_INCREMENT,
   order_code        VARCHAR(30)    NOT NULL,
   user_id           INT UNSIGNED   NOT NULL,
-  status            ENUM('Sedang diproses','Dikirim','Selesai','Dibatalkan')
-                      NOT NULL DEFAULT 'Sedang diproses',
+  status            ENUM('Menunggu pembayaran','Menunggu konfirmasi','Terkonfirmasi','Dalam pelayanan','Selesai','Dibatalkan')
+                      NOT NULL DEFAULT 'Menunggu pembayaran',
   subtotal          DECIMAL(12, 2) NOT NULL,
   shipping_cost     DECIMAL(12, 2) NOT NULL DEFAULT 0,
   total             DECIMAL(12, 2) NOT NULL,
   shipping_method   ENUM('regular','express') NOT NULL DEFAULT 'regular',
   payment_method    ENUM('QRIS','Transfer Bank','Tunai') NOT NULL,
-  payment_status   ENUM('Menunggu pembayaran','Dibayar','Gagal','Dibatalkan') NOT NULL DEFAULT 'Menunggu pembayaran',
+  payment_status   ENUM('Menunggu pembayaran','Menunggu verifikasi','Dibayar','Kedaluwarsa','Gagal','Dibatalkan','Dikembalikan') NOT NULL DEFAULT 'Menunggu pembayaran',
   payment_gateway VARCHAR(30) NULL,
   gateway_transaction_id VARCHAR(100) NULL,
   qris_url VARCHAR(500) NULL,
   payment_updated_at DATETIME NULL,
+  payment_due_at DATETIME NULL,
+  payment_proof_url VARCHAR(500) NULL,
+  payment_proof_uploaded_at DATETIME NULL,
   appointment_date DATE           NULL,
   appointment_time TIME           NULL,
   service_location ENUM('studio','home') NOT NULL DEFAULT 'studio',
@@ -200,6 +203,7 @@ CREATE TABLE orders (
   UNIQUE KEY uq_orders_gateway_transaction (gateway_transaction_id),
   KEY idx_orders_user_date (user_id, created_at),
   KEY idx_orders_appointment (appointment_date, appointment_time, appointment_status),
+  KEY idx_orders_payment_expiry (payment_status, payment_due_at),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
     REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

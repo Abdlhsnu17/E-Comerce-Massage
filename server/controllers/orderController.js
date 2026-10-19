@@ -1,4 +1,5 @@
 const { pool } = require("../config/db");
+const fs = require("fs/promises");
 const { findOrCreateCart } = require("./cartController");
 const { createQris, getStatus, verifyNotification, localStatus, integerAmount } = require("../services/midtransQris");
 
@@ -12,6 +13,8 @@ const DEFAULT_PAYMENT_DETAILS = Object.freeze({
   // URL gambar QRIS merchant yang diterbitkan penyedia pembayaran.
   qrisImageUrl: process.env.QRIS_IMAGE_URL || ""
 });
+const QRIS_PAYMENT_MINUTES = Math.max(5, Number(process.env.QRIS_PAYMENT_MINUTES) || 15);
+const TRANSFER_PAYMENT_HOURS = Math.max(1, Number(process.env.TRANSFER_PAYMENT_HOURS) || 24);
 
 async function getPaymentDetails() {
   try {
@@ -44,6 +47,44 @@ function paymentDetails(details, order = {}) {
   return { ...details, qrisImageUrl: order.qrisUrl || "" };
 }
 
+/** Lepaskan stok dan slot booking yang tidak dibayar sebelum tenggat. */
+async function expirePendingOrders() {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [orders] = await connection.query(
+      `SELECT id, discount_code AS discountCode FROM orders
+        WHERE payment_status = 'Menunggu pembayaran'
+          AND payment_due_at IS NOT NULL AND payment_due_at <= NOW()
+        FOR UPDATE`
+    );
+    for (const order of orders) {
+      const [result] = await connection.query(
+        `UPDATE orders SET payment_status = 'Kedaluwarsa', status = 'Dibatalkan',
+                appointment_status = 'Dibatalkan', payment_updated_at = NOW()
+          WHERE id = ? AND payment_status = 'Menunggu pembayaran'`, [order.id]
+      );
+      if (!result.affectedRows) continue;
+      const [items] = await connection.query(
+        "SELECT product_id AS productId, quantity FROM order_items WHERE order_id = ? AND product_id IS NOT NULL", [order.id]
+      );
+      for (const item of items) {
+        await connection.query("UPDATE products SET stock = stock + ? WHERE id = ?", [item.quantity, item.productId]);
+      }
+      if (order.discountCode) {
+        await connection.query("UPDATE coupons SET used_count = GREATEST(used_count - 1, 0) WHERE code = ?", [order.discountCode]);
+      }
+    }
+    await connection.commit();
+    return orders.length;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function applyGatewayStatus(connection, order, gatewayPayload) {
   if (integerAmount(Number(gatewayPayload.gross_amount)) !== integerAmount(Number(order.total))) {
     throw new HttpError(400, "Nominal notifikasi pembayaran tidak sesuai dengan pesanan.");
@@ -53,9 +94,14 @@ async function applyGatewayStatus(connection, order, gatewayPayload) {
   if (order.paymentStatus === "Dibayar" && nextStatus !== "Dibayar") return "Dibayar";
   await connection.query(
     `UPDATE orders SET payment_status = ?, payment_updated_at = NOW(),
+            status = CASE
+              WHEN ? = 'Dibayar' AND status = 'Menunggu pembayaran' AND appointment_status = 'Dikonfirmasi' THEN 'Terkonfirmasi'
+              WHEN ? = 'Dibayar' AND status = 'Menunggu pembayaran' THEN 'Menunggu konfirmasi'
+              ELSE status END,
+            payment_due_at = IF(? = 'Dibayar', NULL, payment_due_at),
             gateway_transaction_id = COALESCE(gateway_transaction_id, ?)
       WHERE id = ?`,
-    [nextStatus, gatewayPayload.transaction_id || null, order.id]
+    [nextStatus, nextStatus, nextStatus, nextStatus, gatewayPayload.transaction_id || null, order.id]
   );
   await connection.query(
     `UPDATE orders SET status = 'Selesai'
@@ -86,6 +132,9 @@ async function createOrder(req, res, next) {
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
     return res.status(400).json({ message: "Metode pembayaran tidak dikenali." });
   }
+  if (paymentMethod === "Tunai" && serviceLocation === "home") {
+    return res.status(400).json({ message: "Kunjungan ke rumah memerlukan pembayaran QRIS atau transfer bank." });
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate || "") || !/^\d{2}:\d{2}$/.test(appointmentTime || "") || !SERVICE_LOCATIONS.includes(serviceLocation)) {
     return res.status(400).json({ message: "Tanggal, waktu, dan lokasi sesi wajib dipilih." });
   }
@@ -102,6 +151,7 @@ async function createOrder(req, res, next) {
     return res.status(400).json({ message: "Nama, email, dan alamat penerima wajib diisi." });
   }
 
+  await expirePendingOrders();
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -161,15 +211,19 @@ async function createOrder(req, res, next) {
       throw new HttpError(409, "Slot jadwal tersebut baru saja terisi. Silakan pilih jam lain.");
     }
 
+    const initialOrderStatus = paymentMethod === "Tunai" ? "Menunggu konfirmasi" : "Menunggu pembayaran";
+    const paymentDueAt = paymentMethod === "QRIS"
+      ? new Date(Date.now() + QRIS_PAYMENT_MINUTES * 60_000)
+      : paymentMethod === "Transfer Bank" ? new Date(Date.now() + TRANSFER_PAYMENT_HOURS * 3_600_000) : null;
     const [orderResult] = await connection.query(
       `INSERT INTO orders
-        (order_code, user_id, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method,
+        (order_code, user_id, status, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method, payment_due_at,
          appointment_date, appointment_time, service_location,
          recipient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
-        orderCode, req.user.id, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
-        shippingMethod, paymentMethod, appointmentDate, appointmentTime, serviceLocation,
+        orderCode, req.user.id, initialOrderStatus, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
+        shippingMethod, paymentMethod, paymentDueAt, appointmentDate, appointmentTime, serviceLocation,
         recipientName, recipientEmail, recipientPhone || null,
         address, city || null, zip || null, notes || null
       ]
@@ -215,8 +269,9 @@ async function createOrder(req, res, next) {
       subtotal,
       shippingCost,
         total: subtotal - discountAmount + shippingCost,
-      status: "Sedang diproses",
+      status: initialOrderStatus,
       paymentStatus: "Menunggu pembayaran",
+      paymentDueAt,
       appointmentStatus: "Menunggu konfirmasi",
       appointmentDate,
       appointmentTime,
@@ -234,6 +289,7 @@ async function createOrder(req, res, next) {
 
 async function getAvailability(req, res, next) {
   try {
+    await expirePendingOrders();
     const date = String(req.query.date || "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ message: "Tanggal jadwal tidak valid." });
@@ -275,13 +331,14 @@ async function requestOrderChange(req, res, next) {
   } catch (error) { next(error); }
 }
 
-/**
- * Konfirmasi ini dipakai untuk alur pembayaran manual di aplikasi.
- * Pada integrasi gateway produksi, status harus diubah webhook terverifikasi,
- * bukan berdasarkan tombol pelanggan.
- */
-async function confirmPayment(req, res, next) {
+async function discardUploadedFile(file) {
+  if (file?.path) await fs.unlink(file.path).catch(() => {});
+}
+
+/** Bukti transfer hanya mengajukan verifikasi; pelanggan tidak dapat melunasi order sendiri. */
+async function uploadPaymentProof(req, res, next) {
   try {
+    await expirePendingOrders();
     const [orders] = await pool.query(
       `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
               payment_status AS paymentStatus
@@ -289,43 +346,34 @@ async function confirmPayment(req, res, next) {
       [req.params.id, req.user.id]
     );
     const order = orders[0];
-    if (!order) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
-    if (order.paymentMethod === "Tunai") {
-      return res.status(400).json({ message: "Pembayaran tunai dikonfirmasi petugas saat sesi berlangsung." });
-    }
-    if (order.paymentMethod === "QRIS") {
-      return res.status(400).json({ message: "Status QRIS diperbarui otomatis oleh payment gateway." });
-    }
-    if (order.paymentMethod === "Transfer Bank") {
-      return res.status(400).json({ message: "Transfer rekening dikonfirmasi oleh admin setelah dana diterima." });
-    }
-    if (order.paymentStatus === "Dibayar") return res.json({ ...order, message: "Pembayaran sudah berhasil dikonfirmasi." });
+    if (!order) { await discardUploadedFile(req.file); return res.status(404).json({ message: "Pesanan tidak ditemukan." }); }
+    if (order.paymentMethod !== "Transfer Bank") { await discardUploadedFile(req.file); return res.status(400).json({ message: "Bukti pembayaran hanya digunakan untuk transfer bank." }); }
+    if (!req.file) return res.status(400).json({ message: "Pilih foto bukti transfer." });
+    if (order.paymentStatus === "Dibayar") { await discardUploadedFile(req.file); return res.status(409).json({ message: "Pembayaran sudah dikonfirmasi." }); }
     if (order.paymentStatus !== "Menunggu pembayaran") {
-      return res.status(409).json({ message: `Pembayaran tidak dapat dikonfirmasi karena statusnya ${order.paymentStatus}.` });
+      await discardUploadedFile(req.file);
+      return res.status(409).json({ message: `Bukti tidak dapat dikirim karena status pembayaran ${order.paymentStatus}.` });
     }
-
-    await pool.query("UPDATE orders SET payment_status = 'Dibayar' WHERE id = ?", [order.id]);
     await pool.query(
-      `UPDATE orders
-          SET status = 'Selesai'
-        WHERE id = ?
-          AND payment_status = 'Dibayar'
-          AND appointment_status = 'Selesai'
-          AND status <> 'Dibatalkan'`,
-      [order.id]
+      `UPDATE orders SET payment_status = 'Menunggu verifikasi', payment_proof_url = ?,
+              payment_proof_uploaded_at = NOW(), payment_updated_at = NOW(), payment_due_at = NULL
+        WHERE id = ?`, [`/uploads/${req.file.filename}`, order.id]
     );
-    res.json({ ...order, paymentStatus: "Dibayar", message: "Pembayaran berhasil. Invoice siap ditampilkan." });
+    res.json({ id: order.id, paymentStatus: "Menunggu verifikasi", message: "Bukti transfer terkirim dan sedang diverifikasi admin." });
   } catch (error) {
+    await discardUploadedFile(req.file);
     next(error);
   }
 }
 
 async function listOrders(req, res, next) {
   try {
+    await expirePendingOrders();
     const [orders] = await pool.query(
             `SELECT id, order_code AS orderCode, status, subtotal, shipping_cost AS shippingCost,
               total, shipping_method AS shippingMethod, payment_method AS paymentMethod,
-              payment_status AS paymentStatus, qris_url AS qrisUrl,
+              payment_status AS paymentStatus, qris_url AS qrisUrl, payment_due_at AS paymentDueAt,
+              payment_proof_url AS paymentProofUrl,
               appointment_date AS appointmentDate,
               TIME_FORMAT(appointment_time, '%H:%i') AS appointmentTime,
               service_location AS serviceLocation, appointment_status AS appointmentStatus,
@@ -353,6 +401,7 @@ async function listOrders(req, res, next) {
 
 async function refreshPayment(req, res, next) {
   try {
+    await expirePendingOrders();
     const [rows] = await pool.query(
       `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
               payment_status AS paymentStatus
@@ -389,4 +438,4 @@ async function midtransNotification(req, res, next) {
   }
 }
 
-module.exports = { createOrder, getAvailability, requestOrderChange, listOrders, confirmPayment, refreshPayment, midtransNotification, SHIPPING_COST };
+module.exports = { createOrder, getAvailability, requestOrderChange, listOrders, uploadPaymentProof, refreshPayment, midtransNotification, expirePendingOrders, SHIPPING_COST };

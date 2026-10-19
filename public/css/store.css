@@ -60,5 +60,6 @@
 .customer-profile summary span { font-weight: 800; }
 .customer-profile summary small { color: #668171; font-size: 11px; }
 .customer-profile .checkout-form { margin: 0; border-top: 1px solid #e5f4e8; border-radius: 0; box-shadow: none; }
+.payment-deadline{display:block;margin-top:8px;color:#a24735;font-weight:700}.payment-proof-form{display:grid;gap:9px;margin-top:13px}.payment-proof-form label{display:grid;gap:5px;font-size:12px}.payment-proof-form input{padding:8px;border:1px solid #bfe5c8;border-radius:8px;background:#fff}.payment-proof-form .button{min-height:40px;width:max-content}
 .profile-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 520px) { .profile-inline { grid-template-columns: 1fr; } }

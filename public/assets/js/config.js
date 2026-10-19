@@ -1,8 +1,10 @@
 // Nilai bersama UI dipisahkan dari alur bisnis agar mudah diubah dan diuji.
 const SHIPPING_COST = Object.freeze({ regular: 20000, express: 35000 });
 const ADMIN_ORDER_STATUSES = Object.freeze([
-  "Sedang diproses",
-  "Dikirim",
+  "Menunggu pembayaran",
+  "Menunggu konfirmasi",
+  "Terkonfirmasi",
+  "Dalam pelayanan",
   "Selesai",
   "Dibatalkan"
 ]);

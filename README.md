@@ -209,7 +209,8 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | DELETE | `/api/cart/items/:productId` | Hapus item |
 | GET | `/api/orders` | Riwayat pesanan user |
 | POST | `/api/orders` | Buat pesanan baru |
-| PATCH | `/api/orders/:id/payment` | Konfirmasi pembayaran QRIS/transfer oleh pelanggan |
+| POST | `/api/orders/:id/payment-proof` | Unggah bukti transfer bank |
+| POST | `/api/orders/:id/payment/refresh` | Sinkronkan status QRIS dengan gateway |
 | GET | `/api/favorites` | Daftar wishlist |
 | POST | `/api/favorites/:productId` | Tambah atau hapus favorit |
 | POST | `/api/newsletter` | Daftar newsletter |
@@ -227,7 +228,8 @@ Berikut endpoint penting yang tersedia di aplikasi:
 - Saat user login, keranjang tamu akan dicatat dan dipindahkan ke akun tersebut.
 - Harga, ongkir, dan ketersediaan dihitung di server sebelum order dibuat.
 - Jadwal layanan memerlukan konfirmasi admin sebelum status sesi diperbarui.
-- QRIS dan transfer menampilkan instruksi pembayaran serta invoice setelah dikonfirmasi. Untuk status otomatis yang benar-benar berasal dari scan/transfer, sambungkan webhook payment gateway yang tervalidasi; tombol konfirmasi pelanggan bukan pengganti webhook produksi.
+- QRIS berlaku 15 menit dan dikonfirmasi otomatis oleh webhook Midtrans. Transfer bank berlaku 24 jam, kemudian bukti transfer diverifikasi admin. Booking yang tidak dibayar akan kedaluwarsa dan slot serta stok dilepas otomatis.
+- Pembayaran tunai hanya tersedia untuk sesi di studio. Invoice tersedia setelah pembayaran dikonfirmasi; sebelumnya pelanggan melihat ringkasan booking.
 
 ## Catatan penting
 
@@ -261,10 +263,14 @@ QRIS memakai Midtrans Core API agar nominal mengikuti total keranjang dan status
 
 Jika migrasi `009` sudah pernah dijalankan sebelumnya, jalankan juga `database/migrations/010_mandiri_payment_settings.sql` untuk memasukkan rekening Mandiri ke database.
 
+Untuk instalasi yang sudah berjalan, jalankan juga `database/migrations/012_payment_lifecycle.sql` agar tenggat pembayaran, bukti transfer, dan status booking baru tersedia.
+
 ```env
 MIDTRANS_SERVER_KEY=SB-Mid-server-...
 MIDTRANS_IS_PRODUCTION=false
 MIDTRANS_QRIS_ACQUIRER=gopay
+QRIS_PAYMENT_MINUTES=15
+TRANSFER_PAYMENT_HOURS=24
 BANK_NAME=Bank Mandiri
 BANK_ACCOUNT_NUMBER=9000050103739
 BANK_ACCOUNT_HOLDER=HAFSAH QUROTUN AINI

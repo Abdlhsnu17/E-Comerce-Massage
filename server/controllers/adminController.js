@@ -8,8 +8,8 @@
 const bcrypt = require("bcryptjs");
 const { pool } = require("../config/db");
 
-const ORDER_STATUSES = ["Sedang diproses", "Dikirim", "Selesai", "Dibatalkan"];
-const PAYMENT_STATUSES = ["Menunggu pembayaran", "Dibayar", "Gagal", "Dibatalkan"];
+const ORDER_STATUSES = ["Menunggu pembayaran", "Menunggu konfirmasi", "Terkonfirmasi", "Dalam pelayanan", "Selesai", "Dibatalkan"];
+const PAYMENT_STATUSES = ["Menunggu pembayaran", "Menunggu verifikasi", "Dibayar", "Kedaluwarsa", "Gagal", "Dibatalkan", "Dikembalikan"];
 const APPOINTMENT_STATUSES = ["Menunggu konfirmasi", "Dikonfirmasi", "Selesai", "Dibatalkan"];
 const ALLOWED_DURATION_MINUTES = new Set([30, 45, 60]);
 
@@ -41,8 +41,8 @@ async function getStats(_req, res, next) {
          (SELECT COUNT(*) FROM products WHERE is_active = 0)             AS inactiveProducts,
          (SELECT COUNT(*) FROM products WHERE stock <= 10)               AS lowStock,
          (SELECT COUNT(*) FROM orders)                                   AS totalOrders,
-         (SELECT COUNT(*) FROM orders WHERE status = 'Sedang diproses')  AS pendingOrders,
-         (SELECT COUNT(*) FROM orders WHERE payment_status = 'Menunggu pembayaran') AS pendingPayments,
+         (SELECT COUNT(*) FROM orders WHERE status IN ('Menunggu pembayaran','Menunggu konfirmasi')) AS pendingOrders,
+         (SELECT COUNT(*) FROM orders WHERE payment_status IN ('Menunggu pembayaran','Menunggu verifikasi')) AS pendingPayments,
          (SELECT COALESCE(SUM(total), 0) FROM orders
            WHERE status <> 'Dibatalkan' AND payment_status = 'Dibayar')  AS revenue,
          (SELECT COUNT(*) FROM newsletter_subscribers)                   AS subscribers`
@@ -94,6 +94,7 @@ async function listAllOrders(req, res, next) {
               o.shipping_cost AS shippingCost, o.total,
               o.shipping_method AS shippingMethod, o.payment_method AS paymentMethod,
               o.payment_status AS paymentStatus, o.appointment_date AS appointmentDate,
+              o.payment_due_at AS paymentDueAt, o.payment_proof_url AS paymentProofUrl,
               TIME_FORMAT(o.appointment_time, '%H:%i') AS appointmentTime,
               o.service_location AS serviceLocation, o.appointment_status AS appointmentStatus,
               o.recipient_name AS recipientName, o.recipient_email AS recipientEmail,
@@ -168,7 +169,15 @@ async function updatePaymentStatus(req, res, next) {
     if (!PAYMENT_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Status pembayaran tidak dikenali." });
     }
-    const [result] = await pool.query("UPDATE orders SET payment_status = ? WHERE id = ?", [status, req.params.id]);
+    const [result] = await pool.query(
+      `UPDATE orders SET payment_status = ?, payment_updated_at = NOW(),
+              payment_due_at = IF(? IN ('Dibayar','Dikembalikan','Dibatalkan'), NULL, payment_due_at),
+              status = CASE
+                WHEN ? = 'Dibayar' AND status = 'Menunggu pembayaran' AND appointment_status = 'Dikonfirmasi' THEN 'Terkonfirmasi'
+                WHEN ? = 'Dibayar' AND status = 'Menunggu pembayaran' THEN 'Menunggu konfirmasi'
+                ELSE status END
+        WHERE id = ?`, [status, status, status, status, req.params.id]
+    );
     if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
     await completeOrderWhenReady(req.params.id);
     res.json({ id: Number(req.params.id), paymentStatus: status });
@@ -185,6 +194,11 @@ async function updateAppointmentStatus(req, res, next) {
     }
     const [result] = await pool.query("UPDATE orders SET appointment_status = ? WHERE id = ?", [status, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    if (status === "Dikonfirmasi") {
+      await pool.query("UPDATE orders SET status = 'Terkonfirmasi' WHERE id = ? AND payment_status = 'Dibayar' AND status <> 'Dibatalkan'", [req.params.id]);
+    } else if (status === "Selesai") {
+      await pool.query("UPDATE orders SET status = 'Dalam pelayanan' WHERE id = ? AND status <> 'Dibatalkan'", [req.params.id]);
+    }
     await completeOrderWhenReady(req.params.id);
     res.json({ id: Number(req.params.id), appointmentStatus: status });
   } catch (error) {

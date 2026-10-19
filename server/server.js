@@ -4,6 +4,7 @@ const { validateEnvironment } = require("./config/environment");
 const { createApp } = require("./app");
 const { pool, testConnection } = require("./config/db");
 const { ensureMassageCatalog } = require("./services/massageCatalogBootstrap");
+const { expirePendingOrders } = require("./controllers/orderController");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -25,6 +26,10 @@ async function start() {
   const server = app.listen(PORT, HOST, () =>
     console.log(`✔ Aera Baby Spa mendengarkan di ${HOST}:${PORT}`)
   );
+  const paymentExpiryTimer = setInterval(() => {
+    expirePendingOrders().catch(error => console.error("Gagal memproses pembayaran kedaluwarsa:", error.message));
+  }, 60_000);
+  paymentExpiryTimer.unref();
 
   server.on("error", error => {
     if (error.code === "EADDRINUSE") {
@@ -40,6 +45,7 @@ async function start() {
   const shutdown = signal => {
     if (shuttingDown) return;
     shuttingDown = true;
+    clearInterval(paymentExpiryTimer);
     console.log(`Menerima ${signal}; menghentikan server dengan aman.`);
     server.close(async error => {
       try { await pool.end(); } catch (dbError) { console.error("Gagal menutup pool database:", dbError); }
