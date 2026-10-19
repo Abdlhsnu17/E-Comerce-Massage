@@ -153,6 +153,10 @@
       <section id="pengguna" class="dashboard-section">
         <div class="dashboard-section__heading"><div><span class="eyebrow"><i></i> Hak akses</span><h2>Manajemen pengguna</h2></div><div class="service-heading-actions"><span id="user-count" class="section-count"></span><button id="add-user-button" class="service-add-button" type="button">Tambah akun</button></div></div>
         <p id="users-message" class="section-message" role="status" aria-live="polite"></p>
+        <div id="current-user-card" class="current-user-card" hidden>
+          <div><span class="current-user-card__label">Akun Anda</span><strong id="current-user-name"></strong><span id="current-user-email"></span></div>
+          <span class="role-badge">Admin aktif</span>
+        </div>
         <form id="user-form" class="service-editor" hidden>
           <div class="service-form-heading"><h3 id="user-form-title">Tambah akun baru</h3></div>
           <input name="id" type="hidden">

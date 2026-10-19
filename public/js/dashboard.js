@@ -55,6 +55,7 @@ let auditState = { page: 1, total: 0, items: [] };
 let dashboardTherapists = [];
 let dashboardCategories = [];
 let currentAdminId = null;
+let currentAdmin = null;
 
 function setupPasswordToggles() {
   const eyeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';
@@ -337,18 +338,23 @@ function openCategoryForm(category = null) {
 }
 
 function renderUsers(users) {
+  if (!Array.isArray(users)) throw new Error("Format data pengguna tidak valid.");
   dashboardUsers = users;
   document.querySelector("#user-count").textContent = `${users.length} akun`;
   document.querySelector("#users-empty").hidden = users.length > 0;
   document.querySelector("#users-table").innerHTML = users.map(user => {
-    const registeredAt = new Date(user.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" });
+    const registeredDate = user.createdAt ? new Date(user.createdAt) : null;
+    const registeredAt = !registeredDate || Number.isNaN(registeredDate.getTime())
+      ? "-"
+      : registeredDate.toLocaleDateString("id-ID", { dateStyle: "medium" });
     const roleControl = Number(user.id) === currentAdminId
       ? '<span class="role-badge">Admin (Anda)</span>'
       : `<select data-user-role="${Number(user.id)}" aria-label="Peran ${dashboardEsc(user.name)}"><option value="user" ${user.role === "user" ? "selected" : ""}>Pengguna</option><option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option></select>`;
     const editButton = dashboardUserActionButton("edit", "Edit", "data-user-edit", user.id);
     const passwordButton = dashboardIconButton("key", `Ganti password ${dashboardEsc(user.name)}`, "data-user-password", user.id);
     const deleteButton = Number(user.id) === currentAdminId ? "" : dashboardUserActionButton("delete", "Hapus", "data-user-delete", user.id, true);
-    return `<tr><td>${dashboardEsc(user.name)}</td><td>${dashboardEsc(user.email)}</td><td>${dashboardEsc(user.phone || "-")}</td><td>${roleControl}</td><td>${Number(user.totalOrders) || 0}</td><td>${dashboardEsc(registeredAt)}</td><td class="table-actions">${editButton}${passwordButton}${deleteButton}</td></tr>`;
+    const currentUserRow = Number(user.id) === currentAdminId ? ' class="is-current-user"' : "";
+    return `<tr${currentUserRow}><td>${dashboardEsc(user.name)}</td><td>${dashboardEsc(user.email)}</td><td>${dashboardEsc(user.phone || "-")}</td><td>${roleControl}</td><td>${Number(user.totalOrders) || 0}</td><td>${dashboardEsc(registeredAt)}</td><td class="table-actions">${editButton}${passwordButton}${deleteButton}</td></tr>`;
   }).join("");
 }
 
@@ -392,14 +398,24 @@ function openServiceEditor(product = null) {
 
 async function refreshDashboard() {
   dashboardMessage.textContent = "Memuat data dashboard…";
+  // Muat pengguna secara mandiri. Kegagalan modul dashboard lain tidak boleh
+  // membuat tabel pengguna terlihat kosong tanpa penjelasan.
   try {
-    const [stats, orders, products, categories, siteContent, users, changeRequests, coupons, scheduleSettings, subscribers, auditLogs, therapists] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.admin.categories(), api.admin.siteContent(), api.admin.users(), api.admin.orderChangeRequests(), api.admin.coupons(), api.admin.scheduleSettings(), api.admin.newsletterSubscribers(), api.admin.auditLogs(), api.admin.therapists()]);
+    renderUsers(await api.admin.users());
+    setUsersMessage("");
+  } catch (error) {
+    const fallbackUser = currentAdmin ? [{ ...currentAdmin, totalOrders: 0, createdAt: null }] : [];
+    renderUsers(fallbackUser);
+    setUsersMessage(`Daftar pengguna belum dapat dimuat: ${error.message}`, "error");
+  }
+
+  try {
+    const [stats, orders, products, categories, siteContent, changeRequests, coupons, scheduleSettings, subscribers, auditLogs, therapists] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.admin.categories(), api.admin.siteContent(), api.admin.orderChangeRequests(), api.admin.coupons(), api.admin.scheduleSettings(), api.admin.newsletterSubscribers(), api.admin.auditLogs(), api.admin.therapists()]);
     renderMetrics(stats);
     renderOrders(orders);
     renderServices(products);
     renderServiceCategories(categories);
     renderCategories(categories);
-    renderUsers(users);
     renderChangeRequests(changeRequests);
     renderCoupons(coupons);
     renderScheduleSettings(scheduleSettings);
@@ -452,6 +468,10 @@ async function initDashboard() {
     }
     document.querySelector("#admin-name").textContent = user.name;
     currentAdminId = Number(user.id);
+    currentAdmin = user;
+    document.querySelector("#current-user-name").textContent = user.name;
+    document.querySelector("#current-user-email").textContent = user.email;
+    document.querySelector("#current-user-card").hidden = false;
     dashboardContent.hidden = false;
     const reportForm = document.querySelector("#sales-report-form");
     const today = new Date();

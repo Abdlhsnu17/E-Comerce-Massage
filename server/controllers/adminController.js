@@ -596,11 +596,8 @@ async function listUsers(_req, res, next) {
   try {
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.email, u.phone, u.role, u.created_at AS createdAt,
-              COUNT(o.id) AS totalOrders,
-              COALESCE(SUM(CASE WHEN o.status <> 'Dibatalkan' THEN o.total END), 0) AS totalBelanja
+              (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS totalOrders
          FROM users u
-         LEFT JOIN orders o ON o.user_id = u.id
-        GROUP BY u.id, u.name, u.email, u.phone, u.role, u.created_at
         ORDER BY u.created_at DESC`
     );
     res.json(rows);
