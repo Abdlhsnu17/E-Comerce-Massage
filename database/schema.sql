@@ -14,6 +14,16 @@ CREATE DATABASE IF NOT EXISTS sentuhan_kecil_db
   DEFAULT COLLATE utf8mb4_unicode_ci;
 USE sentuhan_kecil_db;
 
+-- Ledger ini diisi otomatis oleh `npm run db:migrate`. Pada instalasi baru,
+-- runner mengenali baseline 016 dari struktur di bawah dan tidak mengulang
+-- migrasi lama. Migrasi baru setelah 016 akan dijalankan satu kali.
+CREATE TABLE schema_migrations (
+  filename    VARCHAR(190) NOT NULL,
+  checksum    CHAR(64)     NOT NULL,
+  applied_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (filename)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ---------------------------------------------------------------------
 -- Kategori produk
 -- ---------------------------------------------------------------------

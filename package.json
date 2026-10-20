@@ -11,6 +11,8 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "node --watch server/server.js",
+    "db:migrate": "node server/scripts/migrate.js",
+    "deploy:update": "bash deploy/update-systemd.sh",
     "admin:create": "node server/scripts/createAdmin.js",
     "db:seed:services": "node server/scripts/seedMassageServices.js",
     "test": "node --test"

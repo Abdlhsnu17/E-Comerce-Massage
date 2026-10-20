@@ -13,11 +13,32 @@ test("reschedule only accepts a real future appointment", () => {
   assert.equal(validFutureAppointment("not-a-date", "10:30", now), false);
 });
 
-test("fresh database schema contains customer operations tables", () => {
+test("fresh database schema contains every migration through 016", () => {
   const schema = fs.readFileSync(path.join(__dirname, "..", "database", "schema.sql"), "utf8");
-  for (const table of ["customer_profiles", "coupons", "service_reviews", "order_change_requests"]) {
+  for (const table of [
+    "schema_migrations",
+    "password_reset_tokens",
+    "service_likes",
+    "payment_settings",
+    "customer_profiles",
+    "coupons",
+    "service_reviews",
+    "order_change_requests",
+    "booking_settings",
+    "admin_audit_logs",
+    "therapists"
+  ]) {
     assert.match(schema, new RegExp(`CREATE TABLE ${table}\\s*\\(`));
   }
+
+  assert.match(schema, /duration_minutes\s+SMALLINT UNSIGNED/);
+  assert.match(schema, /payment_status\s+ENUM\([\s\S]*?'Menunggu verifikasi'[\s\S]*?'Dikembalikan'/);
+  assert.match(schema, /payment_due_at\s+DATETIME/);
+  assert.match(schema, /payment_proof_url\s+VARCHAR\(500\)/);
   assert.match(schema, /discount_code\s+VARCHAR\(40\)/);
   assert.match(schema, /discount_amount\s+DECIMAL\(12, 2\)/);
+  assert.match(schema, /service_duration_minutes\s+SMALLINT UNSIGNED/);
+  assert.match(schema, /session_version\s+INT UNSIGNED/);
+  assert.match(schema, /therapist_id\s+INT UNSIGNED/);
+  assert.match(schema, /CONSTRAINT fk_orders_therapist FOREIGN KEY \(therapist_id\)/);
 });

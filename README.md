@@ -93,6 +93,26 @@ npm install
 mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 ```
 
+Setelah `git pull`, jalankan migrasi sebelum me-restart aplikasi. Perintah ini
+aman dijalankan berulang karena migrasi yang berhasil dicatat di tabel
+`schema_migrations`:
+
+```bash
+npm run db:migrate
+sudo systemctl restart aera-baby-spa
+```
+
+Untuk deployment systemd berikutnya, seluruh langkah tersebut dapat dijalankan
+dengan satu perintah dari folder aplikasi (default branch `main`):
+
+```bash
+npm run deploy:update
+```
+
+Skrip akan berhenti bila ada perubahan lokal di VPS agar file produksi tidak
+tertindih tanpa sengaja. Jika branch deployment berbeda, gunakan
+`DEPLOY_BRANCH=nama-branch npm run deploy:update`.
+
 Untuk database lama yang sudah berjalan, terapkan migrasi jadwal terbaru:
 
 ```bash
@@ -165,7 +185,8 @@ Alternatif deployment yang dapat direproduksi tersedia melalui Docker Compose. C
 1. Instal Docker Engine dan Docker Compose plugin di VPS.
 2. Masuk ke folder `docker/`, lalu salin `.env.example` menjadi `.env`; isi seluruh secret, domain HTTPS, dan SMTP. Jangan gunakan password contoh atau commit file `.env`.
 3. Pastikan konfigurasi Nginx pada [deploy/nginx-aera-baby-spa.conf](deploy/nginx-aera-baby-spa.conf) sudah memakai domain dan sertifikat Anda.
-4. Dari folder `docker/`, jalankan `docker compose up -d --build`.
+4. Dari folder `docker/`, jalankan `docker compose up -d --build`. Container
+   aplikasi otomatis menjalankan `npm run db:migrate` sebelum server dimulai.
 5. Cek dengan `docker compose ps`, `docker compose logs -f app`, dan `curl https://domain-anda/health`.
 
 Database dan gambar upload disimpan pada Docker volume `mariadb_data` dan `app_uploads`. Keduanya harus masuk prosedur backup. Jangan menjalankan `docker compose down -v` di production karena perintah tersebut menghapus volume database dan upload.
