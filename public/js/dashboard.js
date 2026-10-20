@@ -1,5 +1,41 @@
 const dashboardMoney = value => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value) || 0);
 const dashboardEsc = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
+const spreadsheetEscape = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[character]));
+function spreadsheetCell(value, style = "cell") {
+  const isNumber = typeof value === "number" && Number.isFinite(value);
+  const safeValue = !isNumber && /^[\t\r ]*[=+\-@]/.test(String(value ?? "")) ? `'${value}` : value;
+  return `<Cell ss:StyleID="${style}"><Data ss:Type="${isNumber ? "Number" : "String"}">${spreadsheetEscape(safeValue)}</Data></Cell>`;
+}
+function downloadSpreadsheet(filename, { title, sheetName, columns, metadata = [], rows = [] }) {
+  const metadataXml = metadata.map(([label, value]) => `<Row>${spreadsheetCell(label, "label")}${spreadsheetCell(value)}</Row>`).join("");
+  const headersXml = `<Row ss:AutoFitHeight="0" ss:Height="24">${columns.map(column => spreadsheetCell(column.title, "header")).join("")}</Row>`;
+  const dataXml = rows.map(row => `<Row>${row.map((value, index) => spreadsheetCell(value, columns[index]?.style || "cell")).join("")}</Row>`).join("");
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="12"/><Alignment ss:Vertical="Center"/></Style>
+<Style ss:ID="title"><Font ss:FontName="Calibri" ss:Size="16" ss:Bold="1" ss:Color="#17663A"/><Alignment ss:Vertical="Center"/></Style>
+<Style ss:ID="label"><Font ss:FontName="Calibri" ss:Size="12" ss:Bold="1"/><Alignment ss:Vertical="Center"/></Style>
+<Style ss:ID="header"><Font ss:FontName="Calibri" ss:Size="12" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#17663A" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>
+<Style ss:ID="cell"><Font ss:FontName="Calibri" ss:Size="12"/><Alignment ss:Vertical="Center"/></Style>
+<Style ss:ID="number"><Font ss:FontName="Calibri" ss:Size="12"/><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="#\,##0"/></Style>
+<Style ss:ID="currency"><Font ss:FontName="Calibri" ss:Size="12"/><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="Rp #\,##0"/></Style>
+</Styles>
+<Worksheet ss:Name="${spreadsheetEscape(sheetName)}"><Table>
+${columns.map(column => `<Column ss:Width="${Number(column.width) || 120}"/>`).join("")}
+<Row ss:AutoFitHeight="0" ss:Height="30"><Cell ss:StyleID="title" ss:MergeAcross="${columns.length - 1}"><Data ss:Type="String">${spreadsheetEscape(title)}</Data></Cell></Row>
+${metadataXml}<Row/>${headersXml}${dataXml}
+</Table></Worksheet></Workbook>`;
+  const url = URL.createObjectURL(new Blob(["\uFEFF", xml], { type: "application/vnd.ms-excel;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.hidden = true;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 const orderStatuses = ["Menunggu pembayaran", "Menunggu konfirmasi", "Terkonfirmasi", "Dalam pelayanan", "Selesai", "Dibatalkan"];
 const paymentStatuses = ["Menunggu pembayaran", "Menunggu verifikasi", "Dibayar", "Kedaluwarsa", "Gagal", "Dibatalkan", "Dikembalikan"];
 const appointmentStatuses = ["Menunggu konfirmasi", "Dikonfirmasi", "Selesai", "Dibatalkan"];
@@ -333,6 +369,8 @@ function openCategoryForm(category = null) {
   form.elements.name.value = category?.name || "";
   form.elements.slug.value = category?.slug || "";
   document.querySelector("#category-form-title").textContent = category ? `Edit ${category.name}` : "Tambah kategori";
+  document.querySelector("#category-message").textContent = "";
+  document.querySelector("#categories-list").hidden = true;
   form.hidden = false;
   form.elements.name.focus();
 }
@@ -409,13 +447,29 @@ async function refreshDashboard() {
     setUsersMessage(`Daftar pengguna belum dapat dimuat: ${error.message}`, "error");
   }
 
+  // Ringkasan dan katalog adalah konten utama dashboard. Muat keduanya
+  // terpisah dari modul tambahan agar kegagalan satu fitur tidak membuat
+  // statistik dan daftar layanan ikut kosong.
   try {
-    const [stats, orders, products, categories, siteContent, changeRequests, coupons, scheduleSettings, subscribers, auditLogs, therapists] = await Promise.all([api.admin.stats(), api.admin.orders(), api.admin.products(), api.admin.categories(), api.admin.siteContent(), api.admin.orderChangeRequests(), api.admin.coupons(), api.admin.scheduleSettings(), api.admin.newsletterSubscribers(), api.admin.auditLogs(), api.admin.therapists()]);
+    const [stats, products, categories] = await Promise.all([
+      api.admin.stats(), api.admin.products(), api.admin.categories()
+    ]);
     renderMetrics(stats);
-    renderOrders(orders);
     renderServices(products);
     renderServiceCategories(categories);
     renderCategories(categories);
+  } catch (error) {
+    dashboardMessage.textContent = `Ringkasan atau katalog belum dapat dimuat: ${error.message}`;
+    return;
+  }
+
+  try {
+    const [orders, siteContent, changeRequests, coupons, scheduleSettings, subscribers, auditLogs, therapists] = await Promise.all([
+      api.admin.orders(), api.admin.siteContent(), api.admin.orderChangeRequests(),
+      api.admin.coupons(), api.admin.scheduleSettings(), api.admin.newsletterSubscribers(),
+      api.admin.auditLogs(), api.admin.therapists()
+    ]);
+    renderOrders(orders);
     renderChangeRequests(changeRequests);
     renderCoupons(coupons);
     renderScheduleSettings(scheduleSettings);
@@ -431,7 +485,7 @@ async function refreshDashboard() {
     await renderAdminAnnouncements();
     dashboardMessage.textContent = "Data terbaru berhasil dimuat.";
   } catch (error) {
-    dashboardMessage.textContent = error.message;
+    dashboardMessage.textContent = `Ringkasan dan katalog sudah dimuat, tetapi sebagian modul lain gagal: ${error.message}`;
   }
 }
 async function renderAdminAnnouncements(){const rows=await api.admin.announcements();document.querySelector("#announcements-admin-list").innerHTML=rows.length?`<table><thead><tr><th>Judul</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map(n=>`<tr><td>${dashboardEsc(n.title)}</td><td>${n.kind}</td><td>${n.isPublished?"Terbit":"Draft"}</td><td class="table-actions">${dashboardIconButton("edit", `Edit ${dashboardEsc(n.title)}`, "data-ann-edit", n.id)}${dashboardIconButton("delete", `Hapus ${dashboardEsc(n.title)}`, "data-ann-delete", n.id, true)}</td></tr>`).join("")}</tbody></table>`:"Belum ada berita atau pengumuman.";}
@@ -592,14 +646,17 @@ document.querySelector("#sales-report-form").addEventListener("submit", async ev
 document.querySelector("#export-sales-report").addEventListener("click", () => {
   if (!latestSalesReport) return;
   const rows = latestSalesReport.byDay || [];
-  const safeCell = value => { const text = String(value ?? ""); return `"${(/^[=+\-@]/.test(text) ? `'${text}` : text).replace(/"/g, '""')}"`; };
-  const csv = ["Tanggal,Pesanan,Omzet terkonfirmasi", ...rows.map(row => `${safeCell(row.date)},${safeCell(row.orders)},${safeCell(row.revenue)}`)].join("\r\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `laporan-penjualan-${latestSalesReport.period.from}-${latestSalesReport.period.to}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadSpreadsheet(`laporan-penjualan-${latestSalesReport.period.from}-${latestSalesReport.period.to}.xls`, {
+    title: "Laporan Penjualan",
+    sheetName: "Penjualan",
+    columns: [
+      { title: "Tanggal", width: 115 },
+      { title: "Jumlah pesanan", width: 125, style: "number" },
+      { title: "Omzet terkonfirmasi (Rp)", width: 190, style: "currency" }
+    ],
+    metadata: [["Periode", `${latestSalesReport.period.from} s.d. ${latestSalesReport.period.to}`]],
+    rows: rows.map(row => [row.date, Number(row.orders) || 0, Number(row.revenue) || 0])
+  });
 });
 document.querySelector("#audit-prev").addEventListener("click", () => loadAuditLogs(Math.max(1, auditState.page - 1)));
 document.querySelector("#audit-next").addEventListener("click", () => loadAuditLogs(auditState.page + 1));
@@ -631,20 +688,24 @@ document.querySelector("#export-subscribers").addEventListener("click", async ev
   const button = event.currentTarget;
   button.disabled = true;
   const message = document.querySelector("#newsletter-message");
-  message.textContent = "Menyiapkan CSV…";
+  message.textContent = "Menyiapkan file Excel…";
   try {
     const first = await api.admin.newsletterSubscribers(newsletterState.q, 1, 200);
     const pages = Math.ceil(first.total / first.limit);
     const results = [first, ...await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, index) => api.admin.newsletterSubscribers(newsletterState.q, index + 2, 200)))];
     const subscribers = results.flatMap(result => result.items);
-    const safeCell = value => { const text = String(value ?? ""); return `"${(/^[=+\-@]/.test(text) ? `'${text}` : text).replace(/"/g, '""')}"`; };
-    const csv = ["Email,Tanggal daftar", ...subscribers.map(item => `${safeCell(item.email)},${safeCell(new Date(item.createdAt).toISOString())}`)].join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "subscriber-newsletter.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const filter = newsletterState.q || "Semua subscriber";
+    downloadSpreadsheet("subscriber-newsletter.xls", {
+      title: "Daftar Subscriber Newsletter",
+      sheetName: "Subscriber",
+      columns: [
+        { title: "No.", width: 50, style: "number" },
+        { title: "Email", width: 270 },
+        { title: "Tanggal terdaftar", width: 180 }
+      ],
+      metadata: [["Filter", filter], ["Total subscriber", subscribers.length]],
+      rows: subscribers.map((item, index) => [index + 1, item.email, new Date(item.createdAt).toLocaleString("id-ID")])
+    });
     message.textContent = `${subscribers.length} subscriber diekspor.`;
   } catch (error) { message.textContent = error.message; }
   finally { button.disabled = false; }
@@ -930,8 +991,12 @@ document.querySelector("#services-table").addEventListener("click", async event 
   }
 });
 const categoryForm = document.querySelector("#category-form");
+const categoriesList = document.querySelector("#categories-list");
 document.querySelector("#add-category-button").addEventListener("click", () => openCategoryForm());
-document.querySelector("#cancel-category").addEventListener("click", () => { categoryForm.hidden = true; });
+document.querySelector("#cancel-category").addEventListener("click", () => {
+  categoryForm.hidden = true;
+  categoriesList.hidden = false;
+});
 categoryForm.addEventListener("submit", async event => {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(categoryForm));
@@ -940,6 +1005,7 @@ categoryForm.addEventListener("submit", async event => {
     if (values.id) await api.admin.updateCategory(values.id, { name: values.name, slug: values.slug });
     else await api.admin.createCategory({ name: values.name, slug: values.slug });
     categoryForm.hidden = true;
+    categoriesList.hidden = false;
     const categories = await api.admin.categories();
     renderCategories(categories);
     renderServiceCategories(categories);

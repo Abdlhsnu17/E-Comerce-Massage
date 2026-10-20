@@ -1,7 +1,12 @@
 -- =====================================================================
 -- Aera Baby Spa — Skema Database
 -- Target: MySQL / MariaDB di localhost:3306
--- Jalankan: mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
+-- Jalankan untuk instalasi baru:
+--   mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
+--
+-- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 016
+-- (booking, pembayaran, voucher, ulasan, audit admin, sesi, dan terapis).
+-- File di database/migrations/ hanya diperlukan untuk database lama.
 -- =====================================================================
 
 CREATE DATABASE IF NOT EXISTS sentuhan_kecil_db
