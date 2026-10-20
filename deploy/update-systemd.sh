@@ -18,11 +18,16 @@ git pull --ff-only origin "$branch"
 echo "→ Memasang dependency production"
 npm ci --omit=dev
 
-echo "→ Menjalankan migrasi database"
-npm run db:migrate
+echo "→ Memasang unit systemd terbaru"
+sudo install -m 0644 "$app_dir/deploy/aera-baby-spa.service" "/etc/systemd/system/$service_name.service"
+sudo systemctl daemon-reload
 
-echo "→ Me-restart $service_name"
-sudo systemctl restart "$service_name"
+echo "→ Menjalankan migrasi dan me-restart $service_name"
+if ! sudo systemctl restart "$service_name"; then
+  echo "Deploy gagal. Log migrasi/aplikasi terakhir:" >&2
+  sudo journalctl -u "$service_name" -n 100 --no-pager >&2
+  exit 1
+fi
 sudo systemctl --no-pager --full status "$service_name"
 
 echo "✔ Deploy selesai pada commit $(git rev-parse --short HEAD)"

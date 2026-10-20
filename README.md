@@ -102,6 +102,13 @@ npm run db:migrate
 sudo systemctl restart aera-baby-spa
 ```
 
+Jika konfigurasi database hanya tersimpan di `/etc/aera-baby-spa.env`, jalankan
+migrasi manual dengan environment tersebut:
+
+```bash
+sudo ENV_FILE=/etc/aera-baby-spa.env npm run db:migrate
+```
+
 Untuk deployment systemd berikutnya, seluruh langkah tersebut dapat dijalankan
 dengan satu perintah dari folder aplikasi (default branch `main`):
 
@@ -109,9 +116,10 @@ dengan satu perintah dari folder aplikasi (default branch `main`):
 npm run deploy:update
 ```
 
-Skrip akan berhenti bila ada perubahan lokal di VPS agar file produksi tidak
-tertindih tanpa sengaja. Jika branch deployment berbeda, gunakan
-`DEPLOY_BRANCH=nama-branch npm run deploy:update`.
+Skrip juga memasang ulang unit systemd sehingga `EnvironmentFile` yang benar
+dipakai oleh migrasi sebelum aplikasi start. Skrip akan berhenti bila ada
+perubahan lokal di VPS agar file produksi tidak tertindih tanpa sengaja. Jika
+branch deployment berbeda, gunakan `DEPLOY_BRANCH=nama-branch npm run deploy:update`.
 
 Untuk database lama yang sudah berjalan, terapkan migrasi jadwal terbaru:
 
