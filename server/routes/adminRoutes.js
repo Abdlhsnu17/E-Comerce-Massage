@@ -1,7 +1,7 @@
 const express = require("express");
 const { uploadImage } = require("../controllers/uploadController");
 const announcements = require("../controllers/announcementController");
-const { receiveImage } = require("../middleware/imageUpload");
+const { receiveImage } = require("../middleware/upload");
 const admin = require("../controllers/adminController");
 const { requireAdmin } = require("../middleware/auth");
 const { auditAdminMutation } = require("../middleware/adminAudit");

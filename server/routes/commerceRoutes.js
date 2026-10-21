@@ -4,7 +4,7 @@ const { createOrder, getAvailability, requestOrderChange, listOrders, uploadPaym
 const { listFavorites, toggleFavorite, subscribeNewsletter } = require("../controllers/favoriteController");
 const { requireAuth } = require("../middleware/auth");
 const { createReview } = require("../controllers/reviewController");
-const { receiveImage } = require("../middleware/imageUpload");
+const { receiveImage } = require("../middleware/upload");
 
 const router = express.Router();
 // Cart dan favorites mendukung tamu melalui session cookie.

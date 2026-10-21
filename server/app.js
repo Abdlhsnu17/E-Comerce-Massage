@@ -1,5 +1,6 @@
 const path = require("path");
 const express = require("express");
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 const routes = require("./routes");
@@ -9,6 +10,25 @@ const { verifyCsrf } = require("./middleware/csrf");
 const { pool } = require("./config/db");
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
+
+function corsOptions() {
+  const allowedOrigins = new Set(
+    [process.env.APP_URL, ...(process.env.CORS_ORIGINS || "").split(",")]
+      .map(origin => origin?.trim().replace(/\/$/, ""))
+      .filter(Boolean)
+  );
+
+  return {
+    credentials: true,
+    origin(origin, callback) {
+      // Request tanpa Origin (server-to-server/same-origin) tetap diperbolehkan.
+      if (!origin || allowedOrigins.has(origin.replace(/\/$/, ""))) return callback(null, true);
+      const error = new Error("Origin tidak diizinkan oleh kebijakan CORS.");
+      error.status = 403;
+      return callback(error);
+    }
+  };
+}
 
 function createApp() {
   const app = express();
@@ -28,6 +48,7 @@ function createApp() {
     next();
   });
   app.use(express.json({ limit: "100kb" }));
+  app.use(cors(corsOptions()));
   app.use(cookieParser());
   app.use(express.static(PUBLIC_DIR));
 
@@ -63,4 +84,6 @@ function createApp() {
   return app;
 }
 
-module.exports = { createApp };
+const app = createApp();
+
+module.exports = { app, createApp };

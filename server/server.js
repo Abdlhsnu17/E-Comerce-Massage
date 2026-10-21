@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const { validateEnvironment } = require("./config/environment");
-const { createApp } = require("./app");
+const { app } = require("./app");
 const { pool, testConnection } = require("./config/db");
 const { ensureMassageCatalog } = require("./services/massageCatalogBootstrap");
 const { expirePendingOrders } = require("./controllers/orderController");
@@ -9,8 +9,6 @@ const { expirePendingOrders } = require("./controllers/orderController");
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
 validateEnvironment();
-const app = createApp();
-
 async function start() {
   try {
     await testConnection();
