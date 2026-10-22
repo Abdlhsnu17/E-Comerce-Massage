@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const jwt = require("jsonwebtoken");
 
 process.env.NODE_ENV = "test";
@@ -7,6 +9,7 @@ process.env.JWT_SECRET = "test-order-list-access-secret-123456789";
 
 const { SECRET } = require("../server/middleware/auth");
 const { orderAccess, listOrderAccess } = require("../server/controllers/orderController");
+const orderControllerSource = fs.readFileSync(path.join(__dirname, "..", "server", "controllers", "orderController.js"), "utf8");
 
 function request({ user, tokens = "" } = {}) {
   return {
@@ -33,6 +36,12 @@ test("invalid recovery tokens do not grant guest-order access", () => {
 
 test("anonymous customer without valid order tokens has no order access", () => {
   assert.equal(listOrderAccess(request()), null);
+});
+
+test("every new order receives an access token independent of login", () => {
+  assert.match(orderControllerSource, /const guestAccessToken = crypto\.randomBytes\(32\)\.toString\("hex"\)/);
+  assert.doesNotMatch(orderControllerSource, /const guestAccessToken = req\.user \? null/);
+  assert.match(orderControllerSource, /tokenHash\(guestAccessToken\)/);
 });
 
 test("logged-in customer can act on a recovered guest order", () => {

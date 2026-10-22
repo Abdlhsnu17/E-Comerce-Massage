@@ -12,16 +12,27 @@ function config() {
 
 async function request(path, options = {}) {
   const { serverKey, baseUrl } = config();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString("base64")}`,
-      "Content-Type": "application/json",
-      ...options.headers
-    },
-    signal: AbortSignal.timeout(15_000)
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString("base64")}`,
+        "Content-Type": "application/json",
+        ...options.headers
+      },
+      signal: AbortSignal.timeout(15_000)
+    });
+  } catch (error) {
+    const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+    throw Object.assign(
+      new Error(timedOut
+        ? "Koneksi ke layanan QRIS kehabisan waktu. Silakan coba lagi."
+        : "Layanan QRIS tidak dapat dihubungi. Periksa koneksi server atau pilih transfer bank."),
+      { status: 502, cause: error }
+    );
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = Array.isArray(body.error_messages) ? body.error_messages.join(" ") : body.status_message;

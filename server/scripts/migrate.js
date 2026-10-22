@@ -13,7 +13,9 @@ function connectionOptions() {
     host: process.env.DB_HOST || "127.0.0.1",
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
+    // Samakan dengan konfigurasi koneksi aplikasi. DB_PASSWORD tetap
+    // didukung untuk instalasi lama.
+    password: process.env.DB_PASS ?? process.env.DB_PASSWORD ?? "",
     database: process.env.DB_NAME || "sentuhan_kecil_db",
     charset: "utf8mb4_unicode_ci",
     multipleStatements: true

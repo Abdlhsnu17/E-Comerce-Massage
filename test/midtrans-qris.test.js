@@ -28,3 +28,15 @@ test("accepts only positive whole-rupiah amounts", () => {
   assert.throws(() => integerAmount("1000.50"));
   assert.throws(() => integerAmount(0));
 });
+
+test("reports a clear error when QRIS is not configured", async () => {
+  const previous = process.env.MIDTRANS_SERVER_KEY;
+  delete process.env.MIDTRANS_SERVER_KEY;
+  const { createQris } = require("../server/services/midtransQris");
+  await assert.rejects(
+    createQris({ orderCode: "AERA-TEST", total: 10000, items: [{ id: 1, name: "Tes", price: 10000, qty: 1 }], customer: { name: "Tes" } }),
+    error => error.status === 503 && /belum dikonfigurasi/i.test(error.message)
+  );
+  if (previous === undefined) delete process.env.MIDTRANS_SERVER_KEY;
+  else process.env.MIDTRANS_SERVER_KEY = previous;
+});

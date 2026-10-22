@@ -4,6 +4,7 @@ let currentUser = null;
 const whatsappNumber = "6289634208909";
 const scheduleSelection = { date: "", time: "" };
 let paymentPollTimer = null;
+let activeOrderId = null;
 const claimedCouponKey = "aera_claimed_coupon";
 
 function getClaimedCoupon() {
@@ -203,15 +204,49 @@ function paymentInstructions(order) {
   const deadlineCopy = deadline ? `<small class="payment-deadline">Bayar sebelum ${esc(deadline)}. Setelah itu slot dilepas otomatis.</small>` : "";
   if (order.paymentMethod === "QRIS") {
     const hasQrisImage = Boolean(order.paymentDetails?.qrisImageUrl);
-    const qrisImage = hasQrisImage ? `<img class="qris-code qris-code--image" src="${esc(order.paymentDetails.qrisImageUrl)}" alt="Barcode QRIS Aera Baby Spa">` : `<div class="qris-code" aria-label="Penanda QRIS belum dikonfigurasi"><span>QRIS</span><small>Belum diatur</small></div>`;
-    const message = hasQrisImage ? "Scan QR ini dengan aplikasi pembayaran Anda. Nominal sudah terisi otomatis." : "QRIS dinamis belum tersedia. Hubungi petugas.";
-    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p>${deadlineCopy}<small class="payment-auto-status">Status pembayaran diperiksa otomatis…</small></div></div>`;
+    const automatic = order.paymentDetails?.qrisAutomatic === true;
+    const qrisImage = hasQrisImage ? `<img class="qris-code qris-code--image${automatic ? "" : " qris-code--static"}" src="${esc(order.paymentDetails.qrisImageUrl)}" alt="Barcode QRIS Aera Baby Spa">` : `<div class="qris-code" aria-label="Penanda QRIS belum dikonfigurasi"><span>QRIS</span><small>Belum diatur</small></div>`;
+    const message = hasQrisImage
+      ? automatic ? "Scan QR ini dengan aplikasi pembayaran Anda. Nominal sudah terisi otomatis." : `Scan QR ini, lalu masukkan nominal tepat sebesar ${rupiah(order.total)}.`
+      : "Gambar QRIS belum tersedia. Hubungi petugas.";
+    const confirmation = automatic
+      ? '<small class="payment-auto-status">Status pembayaran diperiksa otomatis…</small>'
+      : `<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti pembayaran QRIS<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><button class="button button--primary" type="submit">Kirim bukti pembayaran</button><small role="status">Setelah dikirim, pembayaran akan diverifikasi admin.</small></form>`;
+    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p>${deadlineCopy}${confirmation}</div></div>`;
   }
   if (order.paymentMethod === "Transfer Bank") {
     const details = order.paymentDetails || {};
     return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p>${deadlineCopy}<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti transfer<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><button class="button button--primary" type="submit">Kirim bukti transfer</button><small role="status">JPEG, PNG, atau WEBP maksimal 5 MB. Status akan menjadi “Menunggu verifikasi”.</small></form></div></div>`;
   }
   return `<div class="payment-instructions"><div><strong>Bayar tunai</strong><p>Siapkan <b>${rupiah(order.total)}</b> dan lakukan pembayaran kepada petugas saat sesi berlangsung.</p></div></div>`;
+}
+
+function paymentMethodNotice(method) {
+  if (method === "QRIS") {
+    return '<strong>Pembayaran QRIS</strong><span>QR code ditampilkan setelah pesanan dikirim. Ikuti petunjuk konfirmasi yang muncul bersama QR.</span>';
+  }
+  if (method === "Transfer Bank") {
+    return '<strong>Transfer bank</strong><span>Setelah transfer, unggah foto bukti pembayaran untuk diverifikasi admin.</span>';
+  }
+  if (method === "Tunai") {
+    return '<strong>Pembayaran tunai</strong><span>Bayar langsung kepada petugas saat sesi di studio.</span>';
+  }
+  return '<span>Pilih metode pembayaran untuk melihat petunjuknya.</span>';
+}
+
+function bindPaymentProofForms(root) {
+  root.querySelectorAll(".payment-proof-form").forEach(form => form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = form.querySelector("button");
+    const status = form.querySelector('[role="status"]');
+    const file = form.elements.image.files[0];
+    if (!file) { status.textContent = "Pilih gambar bukti pembayaran terlebih dahulu."; return; }
+    if (file.size > 5 * 1024 * 1024) { status.textContent = "Ukuran gambar terlalu besar. Maksimal 5 MB."; return; }
+    button.disabled = true;
+    status.textContent = "Mengirim bukti pembayaran…";
+    try { await api.uploadPaymentProof(form.dataset.proofOrder, file); await renderOrderHistory(); }
+    catch (error) { status.textContent = error.message; button.disabled = false; }
+  }));
 }
 
 function invoiceMarkup(order) {
@@ -245,9 +280,13 @@ async function renderOrderHistory() {
       recipientEmail: order.recipientEmail || currentUser?.email
     })));
     history.hidden = false;
+    const selectedOrder = activeOrderId
+      ? orders.find(order => Number(order.id) === Number(activeOrderId))
+      : orders[0];
+    const visibleOrders = selectedOrder ? [selectedOrder] : [];
     const customerProfile = currentUser ? await api.profile().catch(() => ({})) : null;
     const profileMarkup = customerProfile ? `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details>` : "";
-    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>Pasien: <b>${esc(order.patientName || "-")}</b></p><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan di perangkat ini.</p>"}`;
+    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Pembayaran terbaru</span><h3>Pesanan &amp; invoice Anda</h3></div>${visibleOrders.length ? visibleOrders.map(order => `<article class="order-card" data-order-card="${Number(order.id)}"><div><strong>${esc(order.orderCode)}</strong><p>Pasien: <b>${esc(order.patientName || "-")}</b></p><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada pesanan di perangkat ini.</p>"}`;
     history.querySelector("#customer-profile-form")?.addEventListener("submit", async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -284,19 +323,8 @@ async function renderOrderHistory() {
       }
     }));
     history.querySelectorAll("[data-reschedule-order]").forEach(button => button.addEventListener("click", async () => { const appointmentDate = prompt("Tanggal baru (YYYY-MM-DD):"); const appointmentTime = prompt("Jam baru (HH:MM):"); if (!appointmentDate || !appointmentTime) return; try { alert((await api.requestOrderChange(button.dataset.rescheduleOrder, { requestType: "reschedule", appointmentDate, appointmentTime })).message); } catch (error) { alert(error.message); } }));
-    history.querySelectorAll(".payment-proof-form").forEach(form => form.addEventListener("submit", async event => {
-      event.preventDefault();
-      const button = form.querySelector("button");
-      const status = form.querySelector('[role="status"]');
-      const file = form.elements.image.files[0];
-      if (!file) { status.textContent = "Pilih gambar bukti transfer terlebih dahulu."; return; }
-      if (file.size > 5 * 1024 * 1024) { status.textContent = "Ukuran gambar terlalu besar. Maksimal 5 MB."; return; }
-      button.disabled = true;
-      status.textContent = "Mengirim bukti transfer…";
-      try { await api.uploadPaymentProof(form.dataset.proofOrder, file); await renderOrderHistory(); }
-      catch (error) { status.textContent = error.message; button.disabled = false; }
-    }));
-    const pendingQris = orders.filter(order => order.paymentMethod === "QRIS" && order.paymentStatus === "Menunggu pembayaran");
+    bindPaymentProofForms(history);
+    const pendingQris = visibleOrders.filter(order => order.paymentMethod === "QRIS" && order.paymentDetails?.qrisAutomatic && order.paymentStatus === "Menunggu pembayaran");
     if (pendingQris.length) {
       paymentPollTimer = setTimeout(async () => {
         const results = await Promise.allSettled(pendingQris.map(order => api.refreshPayment(order.id)));
@@ -341,12 +369,21 @@ async function renderCart() {
       locationSelect.name = "serviceLocation";
       locationSelect.innerHTML = '<option value="studio">Datang ke studio</option><option value="home">Kunjungan ke rumah</option>';
       const paymentSelect = form.querySelector('[name="paymentMethod"]');
+      const paymentNotice = document.createElement("p");
+      paymentNotice.className = "payment-method-notice";
+      paymentNotice.setAttribute("aria-live", "polite");
+      paymentSelect.closest("label").after(paymentNotice);
+      const renderPaymentNotice = () => {
+        paymentNotice.innerHTML = paymentMethodNotice(paymentSelect.value);
+      };
       const syncPaymentMethods = () => {
         const cashOption = paymentSelect.querySelector('option[value="Tunai"]');
         cashOption.disabled = locationSelect.value === "home";
         if (cashOption.disabled && paymentSelect.value === "Tunai") paymentSelect.value = "";
+        renderPaymentNotice();
       };
       locationSelect.addEventListener("change", syncPaymentMethods);
+      paymentSelect.addEventListener("change", renderPaymentNotice);
       syncPaymentMethods();
       const bookingFields = document.createElement("div");
       bookingFields.className = "booking-fields";
@@ -385,13 +422,14 @@ async function renderCart() {
       try {
         const order = await api.createOrder(Object.fromEntries(new FormData(form)));
         api.rememberOrder(order);
+        activeOrderId = Number(order.id);
         await renderCart();
-        await renderOrderHistory();
-        const confirmation = document.createElement("p");
-        confirmation.className = "order-confirmation";
+        const confirmation = document.createElement("section");
+        confirmation.className = "checkout-payment-result";
         confirmation.setAttribute("role", "status");
-        confirmation.innerHTML = `Pesanan <strong>${esc(order.orderCode)}</strong> berhasil dibuat. ${order.paymentMethod === "QRIS" ? "Scan QRIS dinamis pada riwayat pembayaran; nominalnya sudah sesuai total pesanan dan status akan berubah otomatis setelah pembayaran diterima." : "Lanjutkan pembayaran pada bagian riwayat di bawah."}`;
+        confirmation.innerHTML = `<p class="order-confirmation">Pesanan <strong>${esc(order.orderCode)}</strong> berhasil dibuat. Silakan selesaikan pembayaran pada kartu pesanan di bawah.</p>`;
         el.prepend(confirmation);
+        document.querySelector(`[data-order-card="${Number(order.id)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch (error) {
         message.textContent = error.message;
         submit.disabled = false;
@@ -549,6 +587,7 @@ function setupOrderLookup() {
     try {
       const order = await api.lookupOrder(Object.fromEntries(new FormData(form)));
       api.rememberOrder(order);
+      activeOrderId = Number(order.id);
       message.textContent = `Pesanan ${order.orderCode} ditemukan.`;
       await renderOrderHistory();
       window.location.hash = "riwayat";
