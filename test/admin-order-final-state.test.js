@@ -22,9 +22,10 @@ test("cancelled orders are final and all status mutations use the final-state gu
   assert.match(dashboard, /const isFinal = isCancelled \|\| isCompleted/);
 });
 
-test("cancel and permanent delete are separate admin actions", () => {
+test("final orders can be permanently deleted while active orders must be cancelled", () => {
   assert.match(routes, /router\.post\("\/orders\/:id\/cancel", admin\.cancelOrder\)/);
   assert.match(routes, /router\.delete\("\/orders\/:id", admin\.deleteOrder\)/);
-  assert.match(controller, /orders\[0\]\.status !== "Dibatalkan"/);
+  assert.match(controller, /if \(!isFinalOrder\(orders\[0\]\)\)/);
+  assert.match(dashboard, /<td>\$\{isFinal/);
   assert.match(dashboard, /data-delete-order=/);
 });

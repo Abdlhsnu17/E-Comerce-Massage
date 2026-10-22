@@ -254,13 +254,18 @@ async function cancelOrder(req, res, next) {
 
 async function deleteOrder(req, res, next) {
   try {
-    const [orders] = await pool.query("SELECT id, status FROM orders WHERE id = ?", [req.params.id]);
+    const [orders] = await pool.query(
+      `SELECT id, status, appointment_status AS appointmentStatus,
+              payment_status AS paymentStatus
+         FROM orders WHERE id = ?`,
+      [req.params.id]
+    );
     if (!orders.length) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
-    if (orders[0].status !== "Dibatalkan") {
-      return res.status(409).json({ message: "Pesanan harus dibatalkan terlebih dahulu sebelum dihapus." });
+    if (!isFinalOrder(orders[0])) {
+      return res.status(409).json({ message: "Hanya pesanan yang sudah selesai atau dibatalkan yang dapat dihapus." });
     }
     await pool.query("DELETE FROM orders WHERE id = ?", [req.params.id]);
-    res.json({ id: Number(req.params.id), message: "Pesanan yang dibatalkan berhasil dihapus." });
+    res.json({ id: Number(req.params.id), message: "Pesanan berhasil dihapus permanen." });
   } catch (error) {
     next(error);
   }

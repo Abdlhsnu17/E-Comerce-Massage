@@ -204,9 +204,9 @@ function renderOrders(orders) {
       <td class="order-total">${dashboardMoney(order.total)}</td>
       <td>${proof}</td>
       <td><div class="order-status-stack"><label>Pesanan<select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}"${finalAttributes}>${orderOptions}</select></label><label>Sesi<select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}"${finalAttributes}>${appointmentOptions}</select></label><label>Pembayaran<select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}"${finalAttributes}>${paymentOptions}</select></label></div></td>
-      <td>${isCancelled
+      <td>${isFinal
         ? `<button class="icon-button icon-button--danger" type="button" data-delete-order="${Number(order.id)}" aria-label="Hapus pesanan ${dashboardEsc(order.orderCode)}" title="Hapus pesanan">×</button>`
-        : `<button class="icon-button icon-button--danger" type="button" data-cancel-order="${Number(order.id)}" aria-label="Batalkan pesanan ${dashboardEsc(order.orderCode)}" title="${isCompleted ? "Pesanan selesai tidak dapat dibatalkan" : "Batalkan pesanan"}"${isCompleted ? " disabled" : ""}>×</button>`}</td>
+        : `<button class="icon-button icon-button--danger" type="button" data-cancel-order="${Number(order.id)}" aria-label="Batalkan pesanan ${dashboardEsc(order.orderCode)}" title="Batalkan pesanan">×</button>`}</td>
     </tr>`;
   }).join("");
 }
@@ -617,7 +617,7 @@ document.querySelector("#orders-table").addEventListener("click", async event =>
   const button = cancelButton || deleteButton;
   if (!button) return;
   const confirmation = deleteButton
-    ? "Hapus permanen pesanan yang dibatalkan ini? Tindakan ini tidak dapat dikembalikan."
+    ? "Hapus permanen pesanan final ini? Tindakan ini tidak dapat dikembalikan."
     : "Batalkan pesanan ini dan kembalikan stok?";
   if (!window.confirm(confirmation)) return;
   button.disabled = true;
