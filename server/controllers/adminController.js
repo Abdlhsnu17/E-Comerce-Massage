@@ -15,6 +15,32 @@ const PAYMENT_STATUSES = ["Menunggu pembayaran", "Menunggu verifikasi", "Dibayar
 const APPOINTMENT_STATUSES = ["Menunggu konfirmasi", "Dikonfirmasi", "Selesai", "Dibatalkan"];
 const ALLOWED_DURATION_MINUTES = new Set([30, 45, 60]);
 
+function isFinalOrder(order) {
+  return order?.status === "Dibatalkan" || (
+    order?.status === "Selesai"
+      && order?.appointmentStatus === "Selesai"
+      && order?.paymentStatus === "Dibayar"
+  );
+}
+
+async function rejectFinalOrderChange(orderId, res) {
+  const [orders] = await pool.query(
+    `SELECT status, appointment_status AS appointmentStatus,
+            payment_status AS paymentStatus
+       FROM orders WHERE id = ?`,
+    [orderId]
+  );
+  if (!orders.length) {
+    res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    return true;
+  }
+  if (isFinalOrder(orders[0])) {
+    res.status(409).json({ message: "Pesanan sudah final dan statusnya tidak dapat diubah." });
+    return true;
+  }
+  return false;
+}
+
 /** "Nimbus Pro" → "nimbus-pro"; dipakai bila admin tidak mengisi slug sendiri. */
 function slugify(text) {
   return String(text)
@@ -125,7 +151,7 @@ async function listAllOrders(req, res, next) {
       params.push(req.query.status);
     }
     if (req.query.q?.trim()) {
-      where.push("(o.order_code LIKE ? OR u.email LIKE ? OR o.recipient_name LIKE ?)");
+      where.push("(o.order_code LIKE ? OR o.recipient_email LIKE ? OR o.recipient_name LIKE ?)");
       const keyword = `%${req.query.q.trim()}%`;
       params.push(keyword, keyword, keyword);
     }
@@ -142,9 +168,10 @@ async function listAllOrders(req, res, next) {
               o.recipient_name AS recipientName, o.recipient_email AS recipientEmail,
               o.recipient_phone AS recipientPhone, o.shipping_address AS address,
               o.shipping_city AS city, o.created_at AS createdAt,
-              u.id AS userId, u.name AS customerName, u.email AS customerEmail
+              u.id AS userId, COALESCE(u.name, o.recipient_name) AS customerName,
+              COALESCE(u.email, o.recipient_email) AS customerEmail
          FROM orders o
-         JOIN users u ON u.id = o.user_id
+         LEFT JOIN users u ON u.id = o.user_id
          LEFT JOIN therapists t ON t.id = o.therapist_id
         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
         ORDER BY o.created_at DESC
@@ -175,6 +202,7 @@ async function updateOrderStatus(req, res, next) {
     if (!ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Status pesanan tidak dikenali." });
     }
+    if (await rejectFinalOrderChange(req.params.id, res)) return;
 
     const [result] = await pool.query("UPDATE orders SET status = ? WHERE id = ?", [status, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
@@ -191,7 +219,12 @@ async function cancelOrder(req, res, next) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    const [orders] = await connection.query("SELECT id, status, discount_code AS discountCode FROM orders WHERE id = ? FOR UPDATE", [req.params.id]);
+    const [orders] = await connection.query(
+      `SELECT id, status, appointment_status AS appointmentStatus,
+              payment_status AS paymentStatus, discount_code AS discountCode
+         FROM orders WHERE id = ? FOR UPDATE`,
+      [req.params.id]
+    );
     const order = orders[0];
     if (!order) {
       await connection.rollback();
@@ -200,6 +233,10 @@ async function cancelOrder(req, res, next) {
     if (order.status === "Dibatalkan") {
       await connection.rollback();
       return res.status(409).json({ message: "Pesanan sudah dibatalkan." });
+    }
+    if (isFinalOrder(order)) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Pesanan yang sudah selesai bersifat final dan tidak dapat dibatalkan." });
     }
     const [items] = await connection.query("SELECT product_id AS productId, quantity FROM order_items WHERE order_id = ? AND product_id IS NOT NULL", [order.id]);
     for (const item of items) await connection.query("UPDATE products SET stock = stock + ? WHERE id = ?", [item.quantity, item.productId]);
@@ -215,12 +252,27 @@ async function cancelOrder(req, res, next) {
   }
 }
 
+async function deleteOrder(req, res, next) {
+  try {
+    const [orders] = await pool.query("SELECT id, status FROM orders WHERE id = ?", [req.params.id]);
+    if (!orders.length) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
+    if (orders[0].status !== "Dibatalkan") {
+      return res.status(409).json({ message: "Pesanan harus dibatalkan terlebih dahulu sebelum dihapus." });
+    }
+    await pool.query("DELETE FROM orders WHERE id = ?", [req.params.id]);
+    res.json({ id: Number(req.params.id), message: "Pesanan yang dibatalkan berhasil dihapus." });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function updatePaymentStatus(req, res, next) {
   try {
     const { status } = req.body;
     if (!PAYMENT_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Status pembayaran tidak dikenali." });
     }
+    if (await rejectFinalOrderChange(req.params.id, res)) return;
     const [result] = await pool.query(
       `UPDATE orders SET payment_status = ?, payment_updated_at = NOW(),
               payment_due_at = IF(? IN ('Dibayar','Dikembalikan','Dibatalkan'), NULL, payment_due_at),
@@ -246,6 +298,7 @@ async function updateAppointmentStatus(req, res, next) {
     if (!APPOINTMENT_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Status jadwal tidak dikenali." });
     }
+    if (await rejectFinalOrderChange(req.params.id, res)) return;
     const [result] = await pool.query("UPDATE orders SET appointment_status = ? WHERE id = ?", [status, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
     if (status === "Dikonfirmasi") {
@@ -293,10 +346,11 @@ async function listOrderChangeRequests(req, res, next) {
               o.payment_status AS paymentStatus,
               o.appointment_date AS currentDate,
               TIME_FORMAT(o.appointment_time, '%H:%i') AS currentTime,
-              u.name AS customerName, u.email AS customerEmail
+              COALESCE(u.name, o.recipient_name) AS customerName,
+              COALESCE(u.email, o.recipient_email) AS customerEmail
          FROM order_change_requests r
          JOIN orders o ON o.id = r.order_id
-         JOIN users u ON u.id = r.user_id
+         LEFT JOIN users u ON u.id = r.user_id
         ${status ? "WHERE r.status = ?" : ""}
         ORDER BY (r.status = 'Menunggu') DESC, r.created_at DESC
         LIMIT 200`,
@@ -983,6 +1037,7 @@ module.exports = {
   listAllOrders,
   updateOrderStatus,
   cancelOrder,
+  deleteOrder,
   updatePaymentStatus,
   updateAppointmentStatus,
   listCategoriesAdmin,

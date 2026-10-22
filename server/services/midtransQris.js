@@ -51,7 +51,7 @@ async function createQris({ orderCode, total, items, customer }) {
     })),
     customer_details: {
       first_name: String(customer.name).slice(0, 50),
-      email: customer.email,
+      ...(customer.email ? { email: customer.email } : {}),
       phone: customer.phone || undefined
     },
     qris: { acquirer: process.env.MIDTRANS_QRIS_ACQUIRER || "gopay" }

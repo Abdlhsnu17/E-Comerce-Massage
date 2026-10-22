@@ -11,8 +11,8 @@ async function createReview(req, res, next) {
       [orderId, req.user.id]
     );
     if (!orders.length) return res.status(403).json({ message: "Ulasan hanya dapat dibuat setelah sesi selesai." });
-    await pool.query("INSERT INTO service_reviews (order_id, user_id, rating, comment) VALUES (?, ?, ?, ?)", [orderId, req.user.id, rating, comment]);
-    res.status(201).json({ message: "Terima kasih. Ulasan Anda menunggu moderasi admin." });
+    const [result] = await pool.query("INSERT INTO service_reviews (order_id, user_id, rating, comment) VALUES (?, ?, ?, ?)", [orderId, req.user.id, rating, comment]);
+    res.status(201).json({ id: result.insertId, orderId, rating, comment, isPublished: false, message: "Terima kasih. Ulasan Anda sudah dikirim ke admin." });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Ulasan untuk pesanan ini sudah dikirim." });
     next(error);

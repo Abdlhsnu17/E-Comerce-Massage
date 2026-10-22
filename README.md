@@ -19,7 +19,7 @@ Proyek ini dirancang untuk bisnis layanan pijat bayi yang ingin menawarkan:
 - Keranjang belanja dan wishlist
 - Checkout dengan data penerima dan metode pembayaran
 - Manajemen tanggal, waktu, dan lokasi sesi layanan
-- Autentikasi pengguna (register/login/logout)
+- Checkout tamu tanpa akun pelanggan, dengan token akses pesanan per perangkat
 - Dashboard admin untuk mengelola konten dan order
 - Pengumuman dan newsletter
 - Upload gambar produk/layanan oleh admin
@@ -260,8 +260,9 @@ Berikut endpoint penting yang tersedia di aplikasi:
 | POST | `/api/cart/items` | Tambah item ke keranjang |
 | PATCH | `/api/cart/items/:productId` | Ubah jumlah item |
 | DELETE | `/api/cart/items/:productId` | Hapus item |
-| GET | `/api/orders` | Riwayat pesanan user |
-| POST | `/api/orders` | Buat pesanan baru |
+| GET | `/api/orders` | Riwayat pesanan akun atau tamu melalui token akses |
+| POST | `/api/orders` | Buat pesanan baru tanpa wajib login |
+| POST | `/api/orders/lookup` | Pulihkan akses pesanan memakai kode dan nomor WhatsApp |
 | POST | `/api/orders/:id/payment-proof` | Unggah bukti transfer bank |
 | POST | `/api/orders/:id/payment/refresh` | Sinkronkan status QRIS dengan gateway |
 | POST | `/api/orders/:id/change-request` | Ajukan perubahan jadwal atau pembatalan |
@@ -285,7 +286,8 @@ Berikut endpoint penting yang tersedia di aplikasi:
 ## Data dan aturan bisnis
 
 - Data produk, user, keranjang, wishlist, pesanan, dan pengumuman disimpan di MySQL.
-- Keranjang dan favorit dapat ditautkan ke sesi tamu maupun user yang sudah login.
+- Keranjang, checkout, pembayaran, dan riwayat pesanan dapat digunakan tanpa akun pelanggan.
+- Token mentah pesanan disimpan pada browser pelanggan; database hanya menyimpan hash SHA-256. Jika data browser dihapus, pelanggan perlu menghubungi admin dengan kode pesanan untuk pengecekan.
 - Saat user login, keranjang tamu akan dicatat dan dipindahkan ke akun tersebut.
 - Harga, ongkir, dan ketersediaan dihitung di server sebelum order dibuat.
 - Jadwal layanan memerlukan konfirmasi admin sebelum status sesi diperbarui.

@@ -1,9 +1,12 @@
 const { pool } = require("../config/db");
 const fs = require("fs/promises");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const { findOrCreateCart } = require("./cartController");
 const { createQris, getStatus, verifyNotification, localStatus, integerAmount } = require("../services/midtransQris");
 const { getBookingSettings, availableTimesForTherapists, assignAvailableTherapist } = require("../services/bookingSchedule");
 const { notifyOrderUpdate } = require("../services/orderMailer");
+const { SECRET } = require("../middleware/auth");
 
 const SHIPPING_COST = { regular: 0, express: 0 };
 const PAYMENT_METHODS = ["QRIS", "Transfer Bank", "Tunai"];
@@ -43,6 +46,81 @@ class HttpError extends Error {
 
 function buildOrderCode() {
   return `AERA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+function tokenHash(token) {
+  return crypto.createHash("sha256").update(String(token || "")).digest("hex");
+}
+
+function recoveryToken(orderId) {
+  return jwt.sign({ orderId: Number(orderId), purpose: "guest-order" }, SECRET, { expiresIn: "365d" });
+}
+
+function recoveryOrderId(token) {
+  try {
+    const payload = jwt.verify(token, SECRET);
+    return payload.purpose === "guest-order" && Number.isInteger(Number(payload.orderId)) ? Number(payload.orderId) : null;
+  } catch {
+    return null;
+  }
+}
+
+function orderAccess(req) {
+  const token = String(req.get("X-Order-Token") || "");
+  const orderId = recoveryOrderId(token);
+  const clauses = [];
+  const values = [];
+
+  if (req.user) { clauses.push("user_id = ?"); values.push(req.user.id); }
+  if (/^[a-f0-9]{64}$/.test(token)) { clauses.push("guest_access_token_hash = ?"); values.push(tokenHash(token)); }
+  if (orderId) { clauses.push("id = ?"); values.push(orderId); }
+
+  return clauses.length ? { clause: `(${clauses.join(" OR ")})`, values } : null;
+}
+
+function listOrderAccess(req) {
+  const tokens = String(req.get("X-Order-Tokens") || "").split(",").filter(Boolean).slice(0, 20);
+  const hashes = tokens.filter(token => /^[a-f0-9]{64}$/.test(token)).map(tokenHash);
+  const orderIds = tokens.map(recoveryOrderId).filter(Boolean);
+  const clauses = [];
+  const values = [];
+
+  // Pengguna yang sedang login tetap dapat memulihkan pesanan tamu melalui
+  // kode pesanan + nomor WhatsApp. Token pemulihan sudah diverifikasi di atas.
+  if (req.user) { clauses.push("user_id = ?"); values.push(req.user.id); }
+  if (hashes.length) { clauses.push(`guest_access_token_hash IN (${hashes.map(() => "?").join(",")})`); values.push(...hashes); }
+  if (orderIds.length) { clauses.push(`id IN (${orderIds.map(() => "?").join(",")})`); values.push(...orderIds); }
+
+  return clauses.length ? { whereClause: `(${clauses.join(" OR ")})`, values } : null;
+}
+
+function normalizedPhone(value) {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
+  else if (digits.startsWith("8")) digits = `62${digits}`;
+  return digits;
+}
+
+async function lookupOrder(req, res, next) {
+  try {
+    const orderCode = String(req.body.orderCode || "").trim().toUpperCase();
+    const phone = normalizedPhone(req.body.phone);
+    if (!/^AERA-[A-Z0-9-]{6,40}$/.test(orderCode) || phone.length < 9) {
+      return res.status(400).json({ message: "Kode pesanan atau nomor WhatsApp tidak valid." });
+    }
+    const [rows] = await pool.query(
+      "SELECT id, order_code AS orderCode, recipient_phone AS recipientPhone FROM orders WHERE order_code = ? LIMIT 1",
+      [orderCode]
+    );
+    const order = rows[0];
+    const actual = normalizedPhone(order?.recipientPhone);
+    const matches = order && actual.length === phone.length
+      && crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(phone));
+    if (!matches) return res.status(404).json({ message: "Pesanan tidak ditemukan. Periksa kembali kode dan nomor WhatsApp." });
+    res.json({ id: order.id, orderCode: order.orderCode, accessToken: recoveryToken(order.id) });
+  } catch (error) {
+    next(error);
+  }
 }
 
 function paymentDetails(details, order = {}) {
@@ -149,8 +227,13 @@ async function createOrder(req, res, next) {
   if (!Object.hasOwn(SHIPPING_COST, shippingMethod)) {
     return res.status(400).json({ message: "Metode pengiriman tidak dikenali." });
   }
-  if (!recipientName || !recipientEmail || !address) {
-    return res.status(400).json({ message: "Nama, email, dan alamat penerima wajib diisi." });
+  const cleanEmail = String(recipientEmail || "").trim();
+  const cleanPhone = String(recipientPhone || "").replace(/[^0-9+]/g, "");
+  if (!recipientName || !cleanPhone || !address) {
+    return res.status(400).json({ message: "Nama, nomor WhatsApp, dan alamat wajib diisi." });
+  }
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ message: "Format email tidak valid." });
   }
 
   await expirePendingOrders();
@@ -225,16 +308,17 @@ async function createOrder(req, res, next) {
     const paymentDueAt = paymentMethod === "QRIS"
       ? new Date(Date.now() + QRIS_PAYMENT_MINUTES * 60_000)
       : paymentMethod === "Transfer Bank" ? new Date(Date.now() + TRANSFER_PAYMENT_HOURS * 3_600_000) : null;
+    const guestAccessToken = req.user ? null : crypto.randomBytes(32).toString("hex");
     const [orderResult] = await connection.query(
       `INSERT INTO orders
-        (order_code, user_id, status, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method, payment_due_at,
+        (order_code, user_id, guest_access_token_hash, status, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method, payment_due_at,
          appointment_date, appointment_time, service_duration_minutes, therapist_id, service_location,
          recipient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
-        orderCode, req.user.id, initialOrderStatus, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
+        orderCode, req.user?.id || null, guestAccessToken ? tokenHash(guestAccessToken) : null, initialOrderStatus, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
         shippingMethod, paymentMethod, paymentDueAt, appointmentDate, appointmentTime, serviceDurationMinutes, assignedTherapist.id, serviceLocation,
-        recipientName, recipientEmail, recipientPhone || null,
+        recipientName, cleanEmail || null, cleanPhone,
         address, city || null, zip || null, notes || null
       ]
     );
@@ -260,7 +344,7 @@ async function createOrder(req, res, next) {
           ...lines.map(line => ({ id: line.id, name: line.name, price: Number(line.price), qty: line.qty })),
           ...(shippingCost ? [{ id: "shipping", name: "Biaya layanan", price: shippingCost, qty: 1 }] : [])
         ],
-        customer: { name: recipientName, email: recipientEmail, phone: recipientPhone }
+        customer: { name: recipientName, email: cleanEmail, phone: cleanPhone }
       });
       await connection.query(
         `UPDATE orders SET payment_gateway = 'midtrans', gateway_transaction_id = ?, qris_url = ? WHERE id = ?`,
@@ -272,8 +356,8 @@ async function createOrder(req, res, next) {
     await connection.query("DELETE FROM cart_items WHERE cart_id = ?", [cartId]);
 
     await connection.commit();
-    notifyOrderUpdate({
-      to: recipientEmail,
+    if (cleanEmail) notifyOrderUpdate({
+      to: cleanEmail,
       recipientName,
       orderCode,
       subject: `Booking ${orderCode} diterima`,
@@ -283,6 +367,7 @@ async function createOrder(req, res, next) {
     const details = await getPaymentDetails();
     res.status(201).json({
       id: orderResult.insertId,
+      accessToken: guestAccessToken,
       orderCode,
       subtotal,
       shippingCost,
@@ -294,6 +379,7 @@ async function createOrder(req, res, next) {
       appointmentDate,
       appointmentTime,
       serviceLocation,
+      paymentMethod,
       paymentDetails: paymentDetails(details, { qrisUrl: qris?.qrUrl })
     });
   } catch (error) {
@@ -331,13 +417,15 @@ async function getAvailability(req, res, next) {
 
 async function requestOrderChange(req, res, next) {
   try {
+    const access = orderAccess(req);
+    if (!access) return res.status(401).json({ message: "Akses pesanan tidak valid." });
     const orderId = Number(req.params.id);
     const requestType = req.body.requestType;
     const reason = String(req.body.reason || "").trim().slice(0, 500) || null;
     if (!Number.isInteger(orderId) || !["reschedule", "cancel"].includes(requestType)) return res.status(400).json({ message: "Permintaan tidak valid." });
     const [orders] = await pool.query(
-      `SELECT id, therapist_id AS therapistId, service_duration_minutes AS durationMinutes FROM orders WHERE id = ? AND user_id = ? AND status <> 'Dibatalkan' AND appointment_status <> 'Selesai'`,
-      [orderId, req.user.id]
+      `SELECT id, therapist_id AS therapistId, service_duration_minutes AS durationMinutes FROM orders WHERE id = ? AND ${access.clause} AND status <> 'Dibatalkan' AND appointment_status <> 'Selesai'`,
+      [orderId, ...access.values]
     );
     if (!orders.length) return res.status(404).json({ message: "Pesanan tidak dapat diubah." });
     const [pending] = await pool.query(
@@ -368,7 +456,7 @@ async function requestOrderChange(req, res, next) {
     }
     await pool.query(
       `INSERT INTO order_change_requests (order_id, user_id, request_type, requested_date, requested_time, reason)
-       VALUES (?, ?, ?, ?, ?, ?)`, [orderId, req.user.id, requestType, date, time, reason]
+       VALUES (?, ?, ?, ?, ?, ?)`, [orderId, req.user?.id || null, requestType, date, time, reason]
     );
     res.status(201).json({ message: requestType === "cancel" ? "Permintaan pembatalan telah dikirim ke admin." : "Permintaan ubah jadwal telah dikirim ke admin." });
   } catch (error) { next(error); }
@@ -382,11 +470,13 @@ async function discardUploadedFile(file) {
 async function uploadPaymentProof(req, res, next) {
   try {
     await expirePendingOrders();
+    const access = orderAccess(req);
+    if (!access) { await discardUploadedFile(req.file); return res.status(401).json({ message: "Akses pesanan tidak valid." }); }
     const [orders] = await pool.query(
       `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
               payment_status AS paymentStatus
-         FROM orders WHERE id = ? AND user_id = ?`,
-      [req.params.id, req.user.id]
+         FROM orders WHERE id = ? AND ${access.clause}`,
+      [req.params.id, ...access.values]
     );
     const order = orders[0];
     if (!order) { await discardUploadedFile(req.file); return res.status(404).json({ message: "Pesanan tidak ditemukan." }); }
@@ -412,19 +502,25 @@ async function uploadPaymentProof(req, res, next) {
 async function listOrders(req, res, next) {
   try {
     await expirePendingOrders();
+    const access = listOrderAccess(req);
+    if (!access) return res.json([]);
+    const { whereClause, values } = access;
     const [orders] = await pool.query(
             `SELECT id, order_code AS orderCode, status, subtotal, shipping_cost AS shippingCost,
               total, shipping_method AS shippingMethod, payment_method AS paymentMethod,
               payment_status AS paymentStatus, qris_url AS qrisUrl, payment_due_at AS paymentDueAt,
               payment_proof_url AS paymentProofUrl,
+              recipient_name AS recipientName, recipient_email AS recipientEmail,
+              recipient_phone AS recipientPhone,
               appointment_date AS appointmentDate,
               TIME_FORMAT(appointment_time, '%H:%i') AS appointmentTime,
               service_location AS serviceLocation, appointment_status AS appointmentStatus,
+              EXISTS(SELECT 1 FROM service_reviews sr WHERE sr.order_id = orders.id) AS hasReview,
               (SELECT r.status FROM order_change_requests r WHERE r.order_id = orders.id ORDER BY r.created_at DESC LIMIT 1) AS changeRequestStatus,
               (SELECT r.request_type FROM order_change_requests r WHERE r.order_id = orders.id ORDER BY r.created_at DESC LIMIT 1) AS changeRequestType,
               created_at AS createdAt
-         FROM orders WHERE user_id = ? ORDER BY created_at DESC`,
-      [req.user.id]
+         FROM orders WHERE ${whereClause} ORDER BY created_at DESC`,
+      values
     );
     if (!orders.length) return res.json([]);
 
@@ -447,11 +543,13 @@ async function listOrders(req, res, next) {
 async function refreshPayment(req, res, next) {
   try {
     await expirePendingOrders();
+    const access = orderAccess(req);
+    if (!access) return res.status(401).json({ message: "Akses pesanan tidak valid." });
     const [rows] = await pool.query(
       `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
               payment_status AS paymentStatus
-         FROM orders WHERE id = ? AND user_id = ?`,
-      [req.params.id, req.user.id]
+         FROM orders WHERE id = ? AND ${access.clause}`,
+      [req.params.id, ...access.values]
     );
     const order = rows[0];
     if (!order) return res.status(404).json({ message: "Pesanan tidak ditemukan." });
@@ -483,4 +581,4 @@ async function midtransNotification(req, res, next) {
   }
 }
 
-module.exports = { createOrder, getAvailability, requestOrderChange, listOrders, uploadPaymentProof, refreshPayment, midtransNotification, expirePendingOrders, SHIPPING_COST };
+module.exports = { createOrder, lookupOrder, getAvailability, requestOrderChange, listOrders, uploadPaymentProof, refreshPayment, midtransNotification, expirePendingOrders, orderAccess, listOrderAccess, SHIPPING_COST };

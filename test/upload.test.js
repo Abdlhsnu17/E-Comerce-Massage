@@ -46,7 +46,7 @@ test("upload menolak MIME gambar dengan signature palsu", async () => {
   });
 });
 
-test("upload menolak file yang lebih besar dari 2 MB", async () => {
+test("upload menolak file yang lebih besar dari 5 MB", async () => {
   await withUploadServer(async baseUrl => {
     const body = new FormData();
     body.append("image", new Blob([Buffer.alloc(MAX_IMAGE_SIZE + 1)], { type: "image/jpeg" }), "large.jpg");

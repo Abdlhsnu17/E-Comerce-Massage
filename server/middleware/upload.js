@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const UPLOAD_DIRECTORY = path.resolve(__dirname, "../../public/uploads");
 const ALLOWED_IMAGE_TYPES = new Map([
   ["image/jpeg", ".jpg"],
@@ -63,7 +63,10 @@ function receiveImage(req, res, next) {
   upload.single("image")(req, res, async error => {
     if (error) {
       const status = error.code === "LIMIT_FILE_SIZE" ? 413 : (error.status || 400);
-      return res.status(status).json({ message: error.message });
+      const message = error.code === "LIMIT_FILE_SIZE"
+        ? "Ukuran gambar terlalu besar. Maksimal 5 MB."
+        : error.message;
+      return res.status(status).json({ message });
     }
     if (!req.file) return res.status(400).json({ message: "File gambar wajib disertakan." });
     if (!hasValidSignature(req.file.buffer, req.file.mimetype)) {

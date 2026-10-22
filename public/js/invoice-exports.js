@@ -53,47 +53,121 @@
     return rows.map(row => row.map(csvCell).join(",")).join("\r\n");
   }
 
-  function printPdf(order) {
-    const popup = window.open("", "_blank");
-    if (!popup) {
-      alert("Izinkan pop-up untuk mencetak atau menyimpan invoice sebagai PDF.");
-      return;
-    }
-    popup.opener = null;
-    const items = (order.items || []).map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${Number(item.qty) || 0}</td><td>${formatMoney(item.price)}</td><td>${formatMoney(itemTotal(item))}</td></tr>`).join("");
-    const title = `Invoice ${order.orderCode || ""}`;
-    popup.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
-      *{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#202820;max-width:760px;margin:32px auto;padding:0 20px}
-      h1{font-size:24px;margin:0 0 24px}.details{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:24px}
-      .details p{margin:0}.details strong{display:block;color:#526358;font-size:12px;margin-bottom:4px}
-      table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:10px 8px;border-bottom:1px solid #dce5de;text-align:left}
-      th{background:#f1f6f2}td:nth-child(n+2),th:nth-child(n+2){text-align:right}
-      .totals{margin-left:auto;width:min(100%,300px)}.totals p{display:flex;justify-content:space-between;margin:8px 0}
-      .totals .grand-total{font-size:18px;border-top:1px solid #8c9b90;padding-top:12px;font-weight:bold}
-      @media print{body{margin:0 auto;padding:0}@page{margin:16mm}}
-    </style></head><body><h1>${escapeHtml(title)}</h1><div class="details">
-      <p><strong>Nama pelanggan</strong>${escapeHtml(order.customerName || order.recipientName || "-")}</p>
-      <p><strong>Email pelanggan</strong>${escapeHtml(order.customerEmail || order.recipientEmail || "-")}</p>
-      <p><strong>Tanggal pesanan</strong>${escapeHtml(formatDate(order.createdAt))}</p>
-      <p><strong>Status pesanan</strong>${escapeHtml(order.status || "-")}</p>
-      <p><strong>Status pembayaran</strong>${escapeHtml(order.paymentStatus || "-")}</p>
-      <p><strong>Metode pembayaran</strong>${escapeHtml(order.paymentMethod || "-")}</p>
-      <p><strong>Jadwal sesi</strong>${escapeHtml(formatDate(order.appointmentDate))} ${escapeHtml(order.appointmentTime || "")}</p>
-      <p><strong>Lokasi sesi</strong>${escapeHtml(order.serviceLocation === "home" ? "Kunjungan rumah" : "Studio")}</p>
-    </div><table><thead><tr><th>Layanan</th><th>Jumlah</th><th>Harga satuan</th><th>Total</th></tr></thead><tbody>${items}</tbody></table>
-    <div class="totals"><p><span>Subtotal</span><span>${formatMoney(order.subtotal)}</span></p>
-      <p><span>Biaya kunjungan</span><span>${formatMoney(order.shippingCost)}</span></p>
-      <p class="grand-total"><span>Total</span><span>${formatMoney(order.total)}</span></p></div>
-    <script>window.addEventListener("load", () => window.print());<\/script></body></html>`);
-    popup.document.close();
+  function pdfText(value) {
+    return String(value ?? "-")
+      .normalize("NFKD").replace(/[^\x20-\x7E]/g, "")
+      .replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
   }
 
-  function downloadExcel(order) {
-    const blob = new Blob(["\uFEFF", createCsv(order)], { type: "text/csv;charset=utf-8" });
+  function pdfMoney(value) {
+    return `Rp${new Intl.NumberFormat("id-ID").format(Number(value) || 0)}`;
+  }
+
+  function createPdf(order) {
+    const commands = [];
+    const text = (value, x, y, size = 10, bold = false, color = "0.12 0.25 0.18") => {
+      commands.push(`${color} rg BT /${bold ? "F2" : "F1"} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${pdfText(value)}) Tj ET`);
+    };
+    const line = (x1, y1, x2, y2, color = "0.82 0.89 0.84") => commands.push(`${color} RG ${x1} ${y1} m ${x2} ${y2} l S`);
+    const fill = (x, y, width, height, color) => commands.push(`${color} rg ${x} ${y} ${width} ${height} re f`);
+    const shorten = (value, length) => {
+      const result = String(value || "-");
+      return result.length > length ? `${result.slice(0, length - 3)}...` : result;
+    };
+
+    // Header invoice
+    fill(0, 750, 595, 92, "0.03 0.36 0.17");
+    text("AERA BABY SPA", 50, 805, 11, true, "1 1 1");
+    text("INVOICE", 50, 776, 23, true, "1 1 1");
+    text(order.orderCode || "-", 365, 783, 12, true, "1 1 1");
+    text(formatDate(order.createdAt), 365, 765, 9, false, "0.82 0.94 0.86");
+
+    // Informasi pelanggan dan transaksi
+    fill(50, 616, 495, 108, "0.96 0.98 0.96");
+    text("PELANGGAN", 66, 700, 9, true, "0.18 0.45 0.28");
+    text(shorten(order.customerName || order.recipientName, 34), 66, 680, 12, true);
+    text(shorten(order.customerEmail || order.recipientEmail, 42), 66, 662, 9);
+    text("TRANSAKSI", 315, 700, 9, true, "0.18 0.45 0.28");
+    text(`Metode: ${order.paymentMethod || "-"}`, 315, 680, 9);
+    text(`Pembayaran: ${order.paymentStatus || "-"}`, 315, 662, 9);
+    text(`Pesanan: ${order.status || "-"}`, 315, 644, 9);
+    text("JADWAL", 66, 638, 9, true, "0.18 0.45 0.28");
+    text(`${formatDate(order.appointmentDate)} ${order.appointmentTime || ""} - ${order.serviceLocation === "home" ? "Kunjungan rumah" : "Studio"}`, 66, 622, 9);
+
+    // Tabel layanan
+    const tableTop = 584;
+    fill(50, tableTop, 495, 28, "0.88 0.95 0.90");
+    text("LAYANAN", 62, tableTop + 10, 9, true, "0.10 0.38 0.20");
+    text("JUMLAH", 326, tableTop + 10, 9, true, "0.10 0.38 0.20");
+    text("HARGA", 390, tableTop + 10, 9, true, "0.10 0.38 0.20");
+    text("TOTAL", 482, tableTop + 10, 9, true, "0.10 0.38 0.20");
+    const items = (order.items || []).slice(0, 14);
+    let rowY = tableTop - 27;
+    items.forEach(item => {
+      text(shorten(item.name, 42), 62, rowY + 8, 9);
+      text(Number(item.qty) || 0, 343, rowY + 8, 9);
+      text(pdfMoney(item.price), 390, rowY + 8, 9);
+      text(pdfMoney(itemTotal(item)), 482, rowY + 8, 9, true);
+      line(50, rowY, 545, rowY);
+      rowY -= 28;
+    });
+    if (!items.length) {
+      text("Tidak ada rincian layanan", 62, rowY + 8, 9);
+      line(50, rowY, 545, rowY);
+      rowY -= 28;
+    }
+    line(315, tableTop + 28, 315, rowY + 28);
+    line(375, tableTop + 28, 375, rowY + 28);
+    line(470, tableTop + 28, 470, rowY + 28);
+
+    // Ringkasan pembayaran
+    const totalY = Math.max(72, rowY - 105);
+    fill(330, totalY, 215, 88, "0.96 0.98 0.96");
+    text("Subtotal", 346, totalY + 64, 9);
+    text(pdfMoney(order.subtotal), 465, totalY + 64, 9, true);
+    text("Biaya kunjungan", 346, totalY + 44, 9);
+    text(pdfMoney(order.shippingCost), 465, totalY + 44, 9, true);
+    line(346, totalY + 33, 529, totalY + 33);
+    text("TOTAL", 346, totalY + 14, 11, true, "0.03 0.36 0.17");
+    text(pdfMoney(order.total), 455, totalY + 14, 12, true, "0.03 0.36 0.17");
+    text("Terima kasih telah mempercayakan perawatan si kecil kepada Aera Baby Spa.", 50, 38, 8, false, "0.40 0.52 0.44");
+
+    const content = commands.join("\n");
+    const objects = [
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`
+    ];
+    let pdf = "%PDF-1.4\n%1234\n";
+    const offsets = [0];
+    objects.forEach((object, index) => {
+      offsets.push(pdf.length);
+      pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    });
+    const xrefOffset = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    return Uint8Array.from(pdf, character => character.charCodeAt(0));
+  }
+
+  function downloadPdf(order) {
+    const blob = new Blob([createPdf(order)], { type: "application/pdf" });
+    downloadBlob(blob, `invoice-${safeFilename(order)}.pdf`);
+  }
+
+  function safeFilename(order) {
+    return String(order.orderCode || order.id).replace(/[^a-zA-Z0-9_-]/g, "-");
+  }
+
+  function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `invoice-${String(order.orderCode || order.id).replace(/[^a-zA-Z0-9_-]/g, "-")}.csv`;
+    link.download = filename;
     link.hidden = true;
     document.body.appendChild(link);
     link.click();
@@ -101,12 +175,17 @@
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function downloadExcel(order) {
+    const blob = new Blob(["\uFEFF", createCsv(order)], { type: "text/csv;charset=utf-8" });
+    downloadBlob(blob, `invoice-${safeFilename(order)}.csv`);
+  }
+
   document.addEventListener("click", event => {
     const button = event.target.closest("[data-invoice-action]");
     if (!button) return;
     const order = orders.get(String(button.dataset.invoiceId));
     if (!order) return;
-    if (button.dataset.invoiceAction === "pdf") printPdf(order);
+    if (button.dataset.invoiceAction === "pdf") downloadPdf(order);
     else if (button.dataset.invoiceAction === "excel") downloadExcel(order);
   });
 
@@ -117,6 +196,7 @@
     actions(orderId) {
       return `<details class="invoice-export-menu"><summary>Unduh</summary><div class="invoice-export-actions"><button class="text-button" type="button" data-invoice-action="pdf" data-invoice-id="${Number(orderId)}">PDF</button><button class="text-button" type="button" data-invoice-action="excel" data-invoice-id="${Number(orderId)}">Excel</button></div></details>`;
     },
-    createCsv
+    createCsv,
+    createPdf
   };
 })();

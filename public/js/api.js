@@ -1,4 +1,18 @@
 const api = {
+  orderTokens() {
+    try { return JSON.parse(localStorage.getItem("aera_order_tokens") || "{}"); }
+    catch { return {}; }
+  },
+  rememberOrder(order) {
+    if (!order?.id || !order?.accessToken) return;
+    const tokens = api.orderTokens();
+    tokens[String(order.id)] = order.accessToken;
+    localStorage.setItem("aera_order_tokens", JSON.stringify(tokens));
+  },
+  orderHeaders(orderId) {
+    const token = api.orderTokens()[String(orderId)];
+    return token ? { "X-Order-Token": token } : {};
+  },
   csrfToken() {
     return document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("lokamart_csrf="))?.slice("lokamart_csrf=".length) || "";
   },
@@ -37,13 +51,14 @@ const api = {
   profile: () => api.request("/auth/profile"),
   updateProfile: body => api.request("/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
   logout: () => api.request("/auth/logout", { method: "POST" }),
-  orders: () => api.request("/orders"),
+  orders: () => api.request("/orders", { headers: { "X-Order-Tokens": Object.values(api.orderTokens()).join(",") } }),
   appointmentAvailability: (date, durationMinutes = 60) => api.request(`/appointments/availability?date=${encodeURIComponent(date)}&durationMinutes=${encodeURIComponent(durationMinutes)}`),
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
-  requestOrderChange: (orderId, body) => api.request(`/orders/${orderId}/change-request`, { method: "POST", body: JSON.stringify(body) }),
+  lookupOrder: body => api.request("/orders/lookup", { method: "POST", body: JSON.stringify(body) }),
+  requestOrderChange: (orderId, body) => api.request(`/orders/${orderId}/change-request`, { method: "POST", headers: api.orderHeaders(orderId), body: JSON.stringify(body) }),
   createReview: (orderId, body) => api.request(`/orders/${orderId}/review`, { method: "POST", body: JSON.stringify(body) }),
-  uploadPaymentProof: (orderId, file) => { const body = new FormData(); body.append("image", file); return api.request(`/orders/${orderId}/payment-proof`, { method: "POST", body }); },
-  refreshPayment: orderId => api.request(`/orders/${orderId}/payment/refresh`, { method: "POST" }),
+  uploadPaymentProof: (orderId, file) => { const body = new FormData(); body.append("image", file); return api.request(`/orders/${orderId}/payment-proof`, { method: "POST", headers: api.orderHeaders(orderId), body }); },
+  refreshPayment: orderId => api.request(`/orders/${orderId}/payment/refresh`, { method: "POST", headers: api.orderHeaders(orderId) }),
   admin: {
     stats: () => api.request("/admin/stats"),
     orders: () => api.request("/admin/orders"),
@@ -59,7 +74,8 @@ const api = {
     setOrderStatus: (id, status) => api.request(`/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setPaymentStatus: (id, status) => api.request(`/admin/orders/${id}/payment-status`, { method: "PATCH", body: JSON.stringify({ status }) })
     ,setAppointmentStatus: (id, status) => api.request(`/admin/orders/${id}/appointment-status`, { method: "PATCH", body: JSON.stringify({ status }) })
-    ,cancelOrder: id => api.request(`/admin/orders/${id}`, { method: "DELETE" })
+    ,cancelOrder: id => api.request(`/admin/orders/${id}/cancel`, { method: "POST" })
+    ,deleteOrder: id => api.request(`/admin/orders/${id}`, { method: "DELETE" })
     ,orderChangeRequests: () => api.request("/admin/order-change-requests")
     ,reviewOrderChangeRequest: (id, body) => api.request(`/admin/order-change-requests/${id}`, { method: "PATCH", body: JSON.stringify(body) })
     ,announcements: () => api.request("/admin/announcements")

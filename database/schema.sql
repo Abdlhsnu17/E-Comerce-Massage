@@ -201,7 +201,8 @@ INSERT INTO therapists (name, is_active) VALUES ('Terapis Utama', 1);
 CREATE TABLE orders (
   id                INT UNSIGNED   NOT NULL AUTO_INCREMENT,
   order_code        VARCHAR(30)    NOT NULL,
-  user_id           INT UNSIGNED   NOT NULL,
+  user_id           INT UNSIGNED   NULL,
+  guest_access_token_hash CHAR(64) NULL,
   status            ENUM('Menunggu pembayaran','Menunggu konfirmasi','Terkonfirmasi','Dalam pelayanan','Selesai','Dibatalkan')
                       NOT NULL DEFAULT 'Menunggu pembayaran',
   subtotal          DECIMAL(12, 2) NOT NULL,
@@ -226,7 +227,7 @@ CREATE TABLE orders (
   service_location ENUM('studio','home') NOT NULL DEFAULT 'studio',
   appointment_status ENUM('Menunggu konfirmasi','Dikonfirmasi','Selesai','Dibatalkan') NOT NULL DEFAULT 'Menunggu konfirmasi',
   recipient_name    VARCHAR(120)   NOT NULL,
-  recipient_email   VARCHAR(160)   NOT NULL,
+  recipient_email   VARCHAR(160)   NULL,
   recipient_phone   VARCHAR(30)    NULL,
   shipping_address  TEXT           NOT NULL,
   shipping_city     VARCHAR(120)   NULL,
@@ -236,13 +237,14 @@ CREATE TABLE orders (
   updated_at        TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_orders_code (order_code),
+  UNIQUE KEY uq_orders_guest_access_token_hash (guest_access_token_hash),
   UNIQUE KEY uq_orders_gateway_transaction (gateway_transaction_id),
   KEY idx_orders_user_date (user_id, created_at),
   KEY idx_orders_appointment (appointment_date, appointment_time, appointment_status),
   KEY idx_orders_therapist_appointment (therapist_id, appointment_date, appointment_time),
   KEY idx_orders_payment_expiry (payment_status, payment_due_at),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
-    REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    REFERENCES users (id) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT fk_orders_therapist FOREIGN KEY (therapist_id)
     REFERENCES therapists(id) ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -367,7 +369,7 @@ CREATE TABLE service_reviews (
 CREATE TABLE order_change_requests (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   order_id INT UNSIGNED NOT NULL,
-  user_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NULL,
   request_type ENUM('reschedule','cancel') NOT NULL,
   requested_date DATE NULL,
   requested_time TIME NULL,
@@ -378,7 +380,7 @@ CREATE TABLE order_change_requests (
   PRIMARY KEY (id),
   KEY idx_change_requests_order_status (order_id, status),
   CONSTRAINT fk_change_requests_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-  CONSTRAINT fk_change_requests_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_change_requests_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------

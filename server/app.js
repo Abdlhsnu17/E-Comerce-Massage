@@ -11,7 +11,7 @@ const { pool } = require("./config/db");
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
-function corsOptions() {
+function corsOptions(req) {
   const allowedOrigins = new Set(
     [process.env.APP_URL, ...(process.env.CORS_ORIGINS || "").split(",")]
       .map(origin => origin?.trim().replace(/\/$/, ""))
@@ -22,7 +22,17 @@ function corsOptions() {
     credentials: true,
     origin(origin, callback) {
       // Request tanpa Origin (server-to-server/same-origin) tetap diperbolehkan.
-      if (!origin || allowedOrigins.has(origin.replace(/\/$/, ""))) return callback(null, true);
+      if (!origin) return callback(null, true);
+      const normalizedOrigin = origin.replace(/\/$/, "");
+      let sameHost = false;
+      try {
+        // Permintaan dari halaman aplikasi sendiri tidak memerlukan APP_URL.
+        // Pemeriksaan host tetap menolak origin dari domain lain.
+        sameHost = new URL(normalizedOrigin).host === req.get("host");
+      } catch {
+        sameHost = false;
+      }
+      if (sameHost || allowedOrigins.has(normalizedOrigin)) return callback(null, true);
       const error = new Error("Origin tidak diizinkan oleh kebijakan CORS.");
       error.status = 403;
       return callback(error);
@@ -48,7 +58,7 @@ function createApp() {
     next();
   });
   app.use(express.json({ limit: "100kb" }));
-  app.use(cors(corsOptions()));
+  app.use((req, res, next) => cors(corsOptions(req))(req, res, next));
   app.use(cookieParser());
   app.use(express.static(PUBLIC_DIR));
 

@@ -148,13 +148,20 @@ function setServiceImagePreview(source, temporary = false) {
 
 function renderMetrics(stats) {
   const metrics = [
-    ["Pesanan masuk", stats.totalOrders],
-    ["Menunggu diproses", stats.pendingOrders],
-    ["Layanan terdaftar", stats.totalProducts],
-    ["Menunggu pembayaran", stats.pendingPayments],
-    ["Total transaksi", dashboardMoney(stats.revenue)]
+    ["Pesanan masuk", stats.totalOrders, "orders"],
+    ["Menunggu diproses", stats.pendingOrders, "pending"],
+    ["Layanan terdaftar", stats.totalProducts, "services"],
+    ["Menunggu pembayaran", stats.pendingPayments, "payment"],
+    ["Total transaksi", dashboardMoney(stats.revenue), "revenue"]
   ];
-  document.querySelector("#metric-grid").innerHTML = metrics.map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${dashboardEsc(value)}</strong></article>`).join("");
+  const icons = {
+    orders: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg>',
+    pending: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    services: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4 7.5l8 4.5 8-4.5M12 12v9"/></svg>',
+    payment: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M16 15h2"/></svg>',
+    revenue: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V5M4 20h17M7 16l4-5 3 3 5-7"/></svg>'
+  };
+  document.querySelector("#metric-grid").innerHTML = metrics.map(([label, value, type]) => `<article class="metric metric--${type}"><div class="metric__heading"><span>${label}</span><span class="metric__icon">${icons[type]}</span></div><strong>${dashboardEsc(value)}</strong></article>`).join("");
   renderDashboardCharts(stats.byStatus || []);
 }
 
@@ -178,14 +185,29 @@ function renderOrders(orders) {
   document.querySelector("#order-count").textContent = `${orders.length} pesanan`;
   document.querySelector("#orders-empty").hidden = orders.length > 0;
   document.querySelector("#orders-table").innerHTML = orders.slice(0, 20).map(order => {
+    const isCancelled = order.status === "Dibatalkan";
+    const isCompleted = order.status === "Selesai" && order.appointmentStatus === "Selesai" && order.paymentStatus === "Dibayar";
+    const isFinal = isCancelled || isCompleted;
+    const finalAttributes = isFinal ? " disabled title=\"Status final tidak dapat diubah\"" : "";
     const services = (order.items || []).map(item => `${dashboardEsc(item.name)} × ${dashboardEsc(item.qty)}`).join(", ") || "-";
     const orderOptions = orderStatuses.map(status => `<option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>`).join("");
     const paymentOptions = paymentStatuses.map(status => `<option value="${status}" ${order.paymentStatus === status ? "selected" : ""}>${status}</option>`).join("");
     const appointmentOptions = appointmentStatuses.map(status => `<option value="${status}" ${order.appointmentStatus === status ? "selected" : ""}>${status}</option>`).join("");
     const date = order.appointmentDate ? new Date(`${String(order.appointmentDate).slice(0, 10)}T00:00:00`).toLocaleDateString("id-ID", { dateStyle: "medium" }) : "Belum dijadwalkan";
     const location = order.serviceLocation === "home" ? "Kunjungan rumah" : "Studio";
-    const proof = order.paymentProofUrl ? `<a href="${dashboardEsc(order.paymentProofUrl)}" target="_blank" rel="noopener">Lihat bukti transfer</a>` : window.invoiceExports.actions(order.id);
-    return `<tr><td>${dashboardEsc(order.orderCode)}</td><td>${dashboardEsc(order.customerName || order.recipientName)}</td><td>${services}</td><td>${dashboardEsc(date)} ${dashboardEsc(order.appointmentTime || "")}<small class="table-subline">${dashboardEsc(order.therapistName || "Belum ditetapkan")}</small></td><td>${location}</td><td>${dashboardMoney(order.total)}</td><td>${proof}</td><td><select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}">${orderOptions}</select></td><td><select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}">${appointmentOptions}</select></td><td><select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}">${paymentOptions}</select></td><td><button class="icon-button" type="button" data-cancel-order="${Number(order.id)}" aria-label="Batalkan pesanan ${dashboardEsc(order.orderCode)}" title="Batalkan pesanan">×</button></td></tr>`;
+    const proof = order.paymentProofUrl
+      ? `<a class="order-proof-link" href="${dashboardEsc(order.paymentProofUrl)}" target="_blank" rel="noopener">Lihat bukti</a>`
+      : window.invoiceExports.actions(order.id);
+    return `<tr>
+      <td><div class="order-identity"><strong>${dashboardEsc(order.orderCode)}</strong><span>${dashboardEsc(order.customerName || order.recipientName)}</span></div></td>
+      <td><div class="order-booking"><strong>${services}</strong><span>${dashboardEsc(date)} · ${dashboardEsc(order.appointmentTime || "")} · ${dashboardEsc(location)}</span><small>${dashboardEsc(order.therapistName || "Belum ditetapkan")}</small></div></td>
+      <td class="order-total">${dashboardMoney(order.total)}</td>
+      <td>${proof}</td>
+      <td><div class="order-status-stack"><label>Pesanan<select data-order-id="${Number(order.id)}" aria-label="Status pesanan ${dashboardEsc(order.orderCode)}"${finalAttributes}>${orderOptions}</select></label><label>Sesi<select data-appointment-order="${Number(order.id)}" aria-label="Status sesi ${dashboardEsc(order.orderCode)}"${finalAttributes}>${appointmentOptions}</select></label><label>Pembayaran<select data-payment-order="${Number(order.id)}" aria-label="Status pembayaran ${dashboardEsc(order.orderCode)}"${finalAttributes}>${paymentOptions}</select></label></div></td>
+      <td>${isCancelled
+        ? `<button class="icon-button icon-button--danger" type="button" data-delete-order="${Number(order.id)}" aria-label="Hapus pesanan ${dashboardEsc(order.orderCode)}" title="Hapus pesanan">×</button>`
+        : `<button class="icon-button icon-button--danger" type="button" data-cancel-order="${Number(order.id)}" aria-label="Batalkan pesanan ${dashboardEsc(order.orderCode)}" title="${isCompleted ? "Pesanan selesai tidak dapat dibatalkan" : "Batalkan pesanan"}"${isCompleted ? " disabled" : ""}>×</button>`}</td>
+    </tr>`;
   }).join("");
 }
 
@@ -401,6 +423,11 @@ function renderReviews(reviews) {
   document.querySelector("#reviews-table").innerHTML = reviews.map(review => `<tr><td>${dashboardEsc(review.customerName)}</td><td>${dashboardEsc(review.orderCode)}</td><td>${"★".repeat(Number(review.rating))}</td><td>${dashboardEsc(review.comment || "-")}</td><td>${review.isPublished ? "Terbit" : "Menunggu"}</td><td><button class="icon-button" type="button" data-review-toggle="${review.id}" data-review-published="${review.isPublished ? "1" : "0"}" aria-label="${review.isPublished ? "Sembunyikan" : "Terbitkan"} ulasan" title="${review.isPublished ? "Sembunyikan" : "Terbitkan"}">${review.isPublished ? "−" : "✓"}</button></td></tr>`).join("");
 }
 
+async function refreshReviews() {
+  try { renderReviews(await api.admin.reviews()); }
+  catch (error) { document.querySelector("#reviews-message").textContent = error.message; }
+}
+
 function setUsersMessage(message, type = "") {
   const notice = document.querySelector("#users-message");
   notice.textContent = message;
@@ -435,6 +462,11 @@ function openServiceEditor(product = null) {
 }
 
 async function refreshDashboard() {
+  const refreshButton = document.querySelector("#refresh-dashboard");
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.classList.add("is-loading");
+  }
   dashboardMessage.textContent = "Memuat data dashboard…";
   // Muat pengguna secara mandiri. Kegagalan modul dashboard lain tidak boleh
   // membuat tabel pengguna terlihat kosong tanpa penjelasan.
@@ -460,6 +492,7 @@ async function refreshDashboard() {
     renderCategories(categories);
   } catch (error) {
     dashboardMessage.textContent = `Ringkasan atau katalog belum dapat dimuat: ${error.message}`;
+    if (refreshButton) { refreshButton.disabled = false; refreshButton.classList.remove("is-loading"); }
     return;
   }
 
@@ -487,6 +520,12 @@ async function refreshDashboard() {
   } catch (error) {
     dashboardMessage.textContent = `Ringkasan dan katalog sudah dimuat, tetapi sebagian modul lain gagal: ${error.message}`;
   }
+  const updated = document.querySelector("#summary-updated");
+  if (updated) updated.textContent = `Terakhir diperbarui ${new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`;
+  if (refreshButton) {
+    refreshButton.disabled = false;
+    refreshButton.classList.remove("is-loading");
+  }
 }
 async function renderAdminAnnouncements(){const rows=await api.admin.announcements();document.querySelector("#announcements-admin-list").innerHTML=rows.length?`<table><thead><tr><th>Judul</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map(n=>`<tr><td>${dashboardEsc(n.title)}</td><td>${n.kind}</td><td>${n.isPublished?"Terbit":"Draft"}</td><td class="table-actions">${dashboardIconButton("edit", `Edit ${dashboardEsc(n.title)}`, "data-ann-edit", n.id)}${dashboardIconButton("delete", `Hapus ${dashboardEsc(n.title)}`, "data-ann-delete", n.id, true)}</td></tr>`).join("")}</tbody></table>`:"Belum ada berita atau pengumuman.";}
 const announcementForm=document.querySelector("#announcement-form");
@@ -512,34 +551,49 @@ announcementForm.onsubmit=async e=>{e.preventDefault();const v=Object.fromEntrie
 document.querySelector("#announcements-admin-list").onclick=async e=>{const del=e.target.closest("[data-ann-delete]"),edit=e.target.closest("[data-ann-edit]");if(del&&confirm("Hapus konten ini?")){await api.admin.deleteAnnouncement(del.dataset.annDelete);await renderAdminAnnouncements();}if(edit){const rows=await api.admin.announcements(),n=rows.find(x=>String(x.id)===edit.dataset.annEdit);if(!n)return;announcementForm.hidden=false;announcementForm.reset();announcementForm.id.value=n.id;announcementForm.kind.value=n.kind;announcementForm.title.value=n.title;announcementForm.excerpt.value=n.excerpt||"";announcementForm.content.value=n.content;announcementForm.isPublished.checked=!!n.isPublished;announcementImageUrl.value=n.image||"";announcementImageInput.value="";announcementForm.scrollIntoView({behavior:"smooth",block:"center"});}};
 
 async function initDashboard() {
+  let user;
   try {
-    const user = await api.me();
-    if (user.role !== "admin") {
-      dashboardContent.hidden = true;
-      accessMessage.hidden = false;
-      document.querySelector("#access-title").textContent = "Dashboard hanya untuk admin.";
-      return;
-    }
-    document.querySelector("#admin-name").textContent = user.name;
-    currentAdminId = Number(user.id);
-    currentAdmin = user;
-    document.querySelector("#current-user-name").textContent = user.name;
-    document.querySelector("#current-user-email").textContent = user.email;
-    document.querySelector("#current-user-card").hidden = false;
-    dashboardContent.hidden = false;
-    const reportForm = document.querySelector("#sales-report-form");
-    const today = new Date();
-    const monthAgo = new Date(today);
-    monthAgo.setDate(today.getDate() - 29);
-    reportForm.elements.from.value = dateInputValue(monthAgo);
-    reportForm.elements.to.value = dateInputValue(today);
-    await refreshDashboard();
-    await loadSalesReport();
+    user = await api.me();
   } catch {
     dashboardContent.hidden = true;
     accessMessage.hidden = false;
     document.querySelector("#access-title").textContent = "Silakan masuk untuk melanjutkan.";
     document.querySelector("#access-copy").textContent = "Masuk menggunakan akun admin, lalu buka dashboard dari menu akun.";
+    return;
+  }
+
+  if (user.role !== "admin") {
+    dashboardContent.hidden = true;
+    accessMessage.hidden = false;
+    document.querySelector("#access-title").textContent = "Dashboard hanya untuk admin.";
+    return;
+  }
+
+  document.querySelector("#admin-name").textContent = user.name;
+  currentAdminId = Number(user.id);
+  currentAdmin = user;
+  document.querySelector("#current-user-name").textContent = user.name;
+  document.querySelector("#current-user-email").textContent = user.email;
+  document.querySelector("#current-user-card").hidden = false;
+  dashboardContent.hidden = false;
+  const reportForm = document.querySelector("#sales-report-form");
+  const today = new Date();
+  const monthAgo = new Date(today);
+  monthAgo.setDate(today.getDate() - 29);
+  reportForm.elements.from.value = dateInputValue(monthAgo);
+  reportForm.elements.to.value = dateInputValue(today);
+
+  try {
+    await refreshDashboard();
+    await loadSalesReport();
+    window.setInterval(() => {
+      if (!document.hidden) refreshReviews();
+    }, 15000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) refreshReviews();
+    });
+  } catch (error) {
+    dashboardMessage.textContent = `Akun tetap masuk, tetapi sebagian data gagal dimuat: ${error.message}`;
   }
 }
 
@@ -558,11 +612,18 @@ document.querySelector("#orders-table").addEventListener("change", async event =
   }
 });
 document.querySelector("#orders-table").addEventListener("click", async event => {
-  const button = event.target.closest("[data-cancel-order]");
-  if (!button || !window.confirm("Batalkan pesanan ini dan kembalikan stok?")) return;
+  const cancelButton = event.target.closest("[data-cancel-order]");
+  const deleteButton = event.target.closest("[data-delete-order]");
+  const button = cancelButton || deleteButton;
+  if (!button) return;
+  const confirmation = deleteButton
+    ? "Hapus permanen pesanan yang dibatalkan ini? Tindakan ini tidak dapat dikembalikan."
+    : "Batalkan pesanan ini dan kembalikan stok?";
+  if (!window.confirm(confirmation)) return;
   button.disabled = true;
   try {
-    await api.admin.cancelOrder(button.dataset.cancelOrder);
+    if (deleteButton) await api.admin.deleteOrder(deleteButton.dataset.deleteOrder);
+    else await api.admin.cancelOrder(cancelButton.dataset.cancelOrder);
     await refreshDashboard();
   } catch (error) {
     dashboardMessage.textContent = error.message;
@@ -1030,5 +1091,6 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
   await api.logout();
   window.location.href = "/";
 });
+document.querySelector("#refresh-dashboard").addEventListener("click", refreshDashboard);
 setupPasswordToggles();
 initDashboard();

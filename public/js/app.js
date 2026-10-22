@@ -148,7 +148,7 @@ function paymentInstructions(order) {
   }
   if (order.paymentMethod === "Transfer Bank") {
     const details = order.paymentDetails || {};
-    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p>${deadlineCopy}<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti transfer<input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required></label><button class="button button--primary" type="submit">Kirim bukti transfer</button><small role="status">Status akan menjadi “Menunggu verifikasi”.</small></form></div></div>`;
+    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p>${deadlineCopy}<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti transfer<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><button class="button button--primary" type="submit">Kirim bukti transfer</button><small role="status">JPEG, PNG, atau WEBP maksimal 5 MB. Status akan menjadi “Menunggu verifikasi”.</small></form></div></div>`;
   }
   return `<div class="payment-instructions"><div><strong>Bayar tunai</strong><p>Siapkan <b>${rupiah(order.total)}</b> dan lakukan pembayaran kepada petugas saat sesi berlangsung.</p></div></div>`;
 }
@@ -156,25 +156,38 @@ function paymentInstructions(order) {
 function invoiceMarkup(order) {
   const items = (order.items || []).map(item => `<li><span>${esc(item.name)} × ${Number(item.qty)}</span><b>${rupiah(item.lineTotal ?? item.price * item.qty)}</b></li>`).join("");
   const finalInvoice = ["Dibayar", "Dikembalikan"].includes(order.paymentStatus);
-  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>${finalInvoice ? "INVOICE" : "RINGKASAN BOOKING"}</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${finalInvoice ? window.invoiceExports.actions(order.id) : ""}</article>`;
+  const completionNote = order.appointmentStatus === "Selesai"
+    ? `<div class="order-completion-note" role="status"><span>Keterangan</span><strong>Pelayanan telah selesai</strong><p>Pesanan ini sudah selesai diproses. Terima kasih telah menggunakan layanan Aera Baby Spa.</p></div>`
+    : "";
+  const review = currentUser && order.status === "Selesai" && order.appointmentStatus === "Selesai"
+    ? reviewMarkup(order)
+    : "";
+  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>${finalInvoice ? "INVOICE" : "RINGKASAN BOOKING"}</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${completionNote}${finalInvoice ? window.invoiceExports.actions(order.id) : ""}${review}</article>`;
+}
+
+function reviewMarkup(order) {
+  const orderId = Number(order.id);
+  if (order.hasReview) return `<div class="review-section"><p class="review-sent" role="status"><span aria-hidden="true">♥</span> Ulasan sudah dikirim ke admin.</p></div>`;
+  const stars = [5, 4, 3, 2, 1].map(value => `<input id="review-${orderId}-${value}" name="rating" type="radio" value="${value}" required><label for="review-${orderId}-${value}" title="${value} bintang"><span aria-hidden="true">★</span><span class="sr-only">${value} bintang</span></label>`).join("");
+  return `<div class="review-section"><button class="review-open-button" type="button" data-review-toggle="${orderId}" aria-expanded="false"><span aria-hidden="true">♥</span> Beri ulasan</button><form class="review-form" data-review-form="${orderId}" hidden><div class="review-form__heading"><span class="review-form__heart" aria-hidden="true">♥</span><div><strong>Bagaimana pengalaman Anda?</strong><p>Ulasan hanya dapat dibuat setelah sesi selesai.</p></div></div><fieldset><legend>Pilih rating</legend><div class="review-stars">${stars}</div></fieldset><label class="review-comment">Ceritakan pengalaman Anda <small>(opsional)</small><textarea name="comment" maxlength="1000" rows="4" placeholder="Contoh: Terapis ramah dan pelayanan sangat nyaman untuk si kecil."></textarea></label><div class="review-form__footer"><p role="status" aria-live="polite"></p><button type="submit"><span aria-hidden="true">♥</span> Kirim ulasan</button></div></form></div>`;
 }
 
 async function renderOrderHistory() {
   const history = document.querySelector("#riwayat");
   if (!history) return;
   if (paymentPollTimer) { clearTimeout(paymentPollTimer); paymentPollTimer = null; }
-  if (!currentUser) { history.hidden = true; return; }
   try {
     const orders = await api.orders();
     window.invoiceExports.register(orders.map(order => ({
       ...order,
-      recipientName: order.recipientName || currentUser.name,
-      recipientEmail: order.recipientEmail || currentUser.email
+      recipientName: order.recipientName || currentUser?.name,
+      recipientEmail: order.recipientEmail || currentUser?.email
     })));
     history.hidden = false;
-    const customerProfile = await api.profile().catch(() => ({}));
-    history.innerHTML = `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details><div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}${order.status === "Selesai" && order.appointmentStatus === "Selesai" ? `<div class="order-change-actions"><button type="button" data-review-order="${order.id}">Beri ulasan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan.</p>"}`;
-    history.querySelector("#customer-profile-form").addEventListener("submit", async event => {
+    const customerProfile = currentUser ? await api.profile().catch(() => ({})) : null;
+    const profileMarkup = customerProfile ? `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details>` : "";
+    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan di perangkat ini.</p>"}`;
+    history.querySelector("#customer-profile-form")?.addEventListener("submit", async event => {
       event.preventDefault();
       const form = event.currentTarget;
       const message = form.querySelector("p");
@@ -183,13 +196,40 @@ async function renderOrderHistory() {
       catch (error) { message.textContent = error.message; }
     });
     history.querySelectorAll("[data-cancel-request]").forEach(button => button.addEventListener("click", async () => { if (!confirm("Kirim permintaan pembatalan ke admin?")) return; try { alert((await api.requestOrderChange(button.dataset.cancelRequest, { requestType: "cancel" })).message); } catch (error) { alert(error.message); } }));
-    history.querySelectorAll("[data-review-order]").forEach(button => button.addEventListener("click", async () => { const rating = prompt("Beri rating 1–5:"); if (!rating) return; const comment = prompt("Tulis ulasan singkat (opsional):") || ""; try { alert((await api.createReview(button.dataset.reviewOrder, { rating, comment })).message); button.disabled = true; } catch (error) { alert(error.message); } }));
+    history.querySelectorAll("[data-review-toggle]").forEach(button => button.addEventListener("click", () => {
+      const form = history.querySelector(`[data-review-form="${button.dataset.reviewToggle}"]`);
+      form.hidden = !form.hidden;
+      button.setAttribute("aria-expanded", String(!form.hidden));
+      button.innerHTML = form.hidden ? '<span aria-hidden="true">♥</span> Beri ulasan' : "Tutup formulir";
+      if (!form.hidden) form.querySelector('input[name="rating"]')?.focus();
+    }));
+    history.querySelectorAll("[data-review-form]").forEach(form => form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const submitButton = form.querySelector('button[type="submit"]');
+      const message = form.querySelector('[role="status"]');
+      const data = Object.fromEntries(new FormData(form));
+      submitButton.disabled = true;
+      message.textContent = "Mengirim ulasan…";
+      try {
+        const result = await api.createReview(form.dataset.reviewForm, data);
+        const section = form.closest(".review-section");
+        const toggle = section.querySelector("[data-review-toggle]");
+        form.hidden = true;
+        toggle.hidden = true;
+        section.insertAdjacentHTML("beforeend", `<p class="review-sent" role="status"><span aria-hidden="true">♥</span> ${esc(result.message)}</p>`);
+      } catch (error) {
+        message.textContent = error.message;
+        submitButton.disabled = false;
+      }
+    }));
     history.querySelectorAll("[data-reschedule-order]").forEach(button => button.addEventListener("click", async () => { const appointmentDate = prompt("Tanggal baru (YYYY-MM-DD):"); const appointmentTime = prompt("Jam baru (HH:MM):"); if (!appointmentDate || !appointmentTime) return; try { alert((await api.requestOrderChange(button.dataset.rescheduleOrder, { requestType: "reschedule", appointmentDate, appointmentTime })).message); } catch (error) { alert(error.message); } }));
     history.querySelectorAll(".payment-proof-form").forEach(form => form.addEventListener("submit", async event => {
       event.preventDefault();
       const button = form.querySelector("button");
       const status = form.querySelector('[role="status"]');
       const file = form.elements.image.files[0];
+      if (!file) { status.textContent = "Pilih gambar bukti transfer terlebih dahulu."; return; }
+      if (file.size > 5 * 1024 * 1024) { status.textContent = "Ukuran gambar terlalu besar. Maksimal 5 MB."; return; }
       button.disabled = true;
       status.textContent = "Mengirim bukti transfer…";
       try { await api.uploadPaymentProof(form.dataset.proofOrder, file); await renderOrderHistory(); }
@@ -220,7 +260,7 @@ async function renderCart() {
       return;
     }
 
-    el.innerHTML = `${cart.items.map(item => `<div class="cart-row"><img class="cart-row__image" src="${esc(item.image || "assets/img/bag.svg")}" alt="${esc(item.name)}" loading="lazy"><span>${esc(item.name)}<small>${rupiah(item.price)} per sesi</small></span><strong>${rupiah(item.price * item.qty)}</strong><div class="cart-controls"><button class="cart-minus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Kurangi jumlah ${esc(item.name)}">−</button><b>${item.qty}</b><button class="cart-plus" data-id="${item.id}" data-qty="${item.qty}" type="button">+</button><button class="cart-remove" data-id="${item.id}" type="button">Hapus</button></div></div>`).join("")}<div class="cart-total"><span>Total layanan</span><strong>${rupiah(cart.subtotal)}</strong></div>${currentUser ? `<form id="checkout-form" class="checkout-form"><h3>Data pemesan</h3><input name="recipientName" placeholder="Nama orang tua" autocomplete="name" required><input name="recipientEmail" type="email" placeholder="Email" autocomplete="email" required><input name="recipientPhone" type="tel" placeholder="Nomor WhatsApp"><textarea name="address" placeholder="Alamat lengkap" required></textarea><input name="couponCode" placeholder="Kode voucher (opsional)" autocomplete="off"><select name="shippingMethod"><option value="regular">Sesi di lokasi layanan</option><option value="express">Kunjungan ke rumah</option></select><label>Metode pembayaran<select name="paymentMethod" required><option value="">Pilih metode pembayaran</option><option value="QRIS">QRIS</option><option value="Transfer Bank">Transfer bank</option><option value="Tunai">Tunai saat sesi</option></select></label><p class="payment-note">Setelah pesanan dibuat, instruksi QRIS/transfer akan tampil di riwayat pembayaran. Pembayaran tunai dilakukan kepada petugas saat sesi.</p><button class="button button--primary" type="submit">Buat pesanan</button><p id="checkout-message" class="store-muted" role="status" aria-live="polite"></p></form>` : `<div class="checkout-required"><p>Masuk atau daftar untuk melanjutkan pemesanan.</p><button id="checkout-login" class="button button--primary" type="button">Masuk untuk checkout</button></div>`}`;
+    el.innerHTML = `${cart.items.map(item => `<div class="cart-row"><img class="cart-row__image" src="${esc(item.image || "assets/img/bag.svg")}" alt="${esc(item.name)}" loading="lazy"><span>${esc(item.name)}<small>${rupiah(item.price)} per sesi</small></span><strong>${rupiah(item.price * item.qty)}</strong><div class="cart-controls"><button class="cart-minus" data-id="${item.id}" data-qty="${item.qty}" type="button" aria-label="Kurangi jumlah ${esc(item.name)}">−</button><b>${item.qty}</b><button class="cart-plus" data-id="${item.id}" data-qty="${item.qty}" type="button">+</button><button class="cart-remove" data-id="${item.id}" type="button">Hapus</button></div></div>`).join("")}<div class="cart-total"><span>Total layanan</span><strong>${rupiah(cart.subtotal)}</strong></div><form id="checkout-form" class="checkout-form"><h3>Data pemesan</h3><input name="recipientName" placeholder="Nama orang tua" autocomplete="name" required><input name="recipientEmail" type="email" placeholder="Email (opsional)" autocomplete="email"><input name="recipientPhone" type="tel" placeholder="Nomor WhatsApp" autocomplete="tel" required><textarea name="address" placeholder="Alamat lengkap" required></textarea><input name="couponCode" placeholder="Kode voucher (opsional)" autocomplete="off"><select name="shippingMethod"><option value="regular">Sesi di lokasi layanan</option><option value="express">Kunjungan ke rumah</option></select><label>Metode pembayaran<select name="paymentMethod" required><option value="">Pilih metode pembayaran</option><option value="QRIS">QRIS</option><option value="Transfer Bank">Transfer bank</option><option value="Tunai">Tunai saat sesi</option></select></label><p class="payment-note">Tidak perlu membuat akun. Status pesanan disimpan aman di perangkat ini.</p><button class="button button--primary" type="submit">Buat pesanan</button><p id="checkout-message" class="store-muted" role="status" aria-live="polite"></p></form>`;
 
     el.querySelectorAll(".cart-minus, .cart-plus").forEach(button => button.addEventListener("click", async () => {
       const change = button.classList.contains("cart-plus") ? 1 : -1;
@@ -281,6 +321,7 @@ async function renderCart() {
       message.textContent = "Membuat pesanan…";
       try {
         const order = await api.createOrder(Object.fromEntries(new FormData(form)));
+        api.rememberOrder(order);
         await renderCart();
         await renderOrderHistory();
         const confirmation = document.createElement("p");
@@ -309,8 +350,10 @@ function setupAuth() {
   const open = m => { mode = m; title.textContent = m === "login" ? "Masuk" : "Daftar akun"; nameLabel.hidden = m === "login"; name.required = m !== "login"; name.disabled = m === "login"; form.password.minLength = m === "login" ? 6 : 12; form.reset(); hidePassword(); msg.textContent = ""; showOnly(form); modal.hidden = false; };
   const openForgot = () => { title.textContent = "Lupa password"; forgotForm.reset(); forgotForm.querySelector("p").textContent = ""; showOnly(forgotForm); modal.hidden = false; };
   const openReset = () => { title.textContent = "Atur ulang password"; resetForm.reset(); resetForm.querySelector("p").textContent = ""; showOnly(resetForm); modal.hidden = false; };
-  document.querySelector("#login-open").onclick = () => open("login");
-  document.querySelector("#register-open").onclick = () => open("register");
+  const loginButton = document.querySelector("#login-open");
+  const registerButton = document.querySelector("#register-open");
+  if (loginButton) loginButton.onclick = () => open("login");
+  if (registerButton) registerButton.onclick = () => open("register");
   document.querySelector("#auth-close").onclick = () => modal.hidden = true;
   passwordToggle.onclick = () => { const visible = passwordInput.type === "password"; passwordInput.type = visible ? "text" : "password"; passwordToggle.setAttribute("aria-pressed", String(visible)); passwordToggle.setAttribute("aria-label", visible ? "Sembunyikan password" : "Lihat password"); passwordInput.focus(); };
   document.querySelector("#forgot-password").onclick = openForgot;
@@ -323,13 +366,17 @@ function setupAuth() {
 }
 function showUser(user) {
   currentUser = user;
-  document.querySelector("#login-open").hidden = true;
-  document.querySelector("#register-open").hidden = true;
+  const loginButton = document.querySelector("#login-open");
+  const registerButton = document.querySelector("#register-open");
+  if (loginButton) loginButton.hidden = true;
+  if (registerButton) registerButton.hidden = true;
   const menu = document.querySelector("#user-menu");
   menu.hidden = false;
   document.querySelector("#user-menu-greeting").textContent = `Halo, ${user.name}`;
   const dropdown = document.querySelector("#user-menu-dropdown");
-  dropdown.innerHTML = `${user.role === "admin" ? '<a href="/dashboard.html">Dashboard</a>' : ""}<a href="#riwayat">Transaksi Saya</a><button id="logout-btn" type="button">Keluar</button>`;
+  dropdown.innerHTML = user.role === "admin"
+    ? '<a href="/dashboard.html">Dashboard</a><button id="logout-btn" type="button">Keluar</button>'
+    : '<a href="#riwayat">Transaksi Saya</a><button id="logout-btn" type="button">Keluar</button>';
   document.querySelector("#logout-btn").addEventListener("click", async () => {
     try {
       await api.logout();
@@ -394,7 +441,12 @@ function setupSectionPanels() {
   const showPanelForHash = hash => {
     const target = document.getElementById(decodeURIComponent(hash.slice(1)));
     const activePanel = target?.closest("[data-section-panel]")?.dataset.sectionPanel || "";
+    const historyOnly = activePanel === "keranjang" && target?.id === "riwayat";
     sections.forEach(section => { section.hidden = section.dataset.sectionPanel !== activePanel; });
+    const cartHeading = document.querySelector("#cart-heading");
+    const cart = document.querySelector("#cart");
+    if (cartHeading) cartHeading.hidden = historyOnly;
+    if (cart) cart.hidden = historyOnly;
     links.forEach(link => {
       const linkTarget = document.getElementById(decodeURIComponent(link.hash.slice(1)));
       const linkPanel = linkTarget?.closest("[data-section-panel]")?.dataset.sectionPanel;
@@ -422,4 +474,26 @@ function setupBackToTop() {
   window.addEventListener("scroll", updateVisibility, { passive: true });
   updateVisibility();
 }
-document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupSectionPanels(); setupBackToTop(); });
+function setupOrderLookup() {
+  const form = document.querySelector("#order-lookup-form");
+  if (!form) return;
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = form.querySelector("button");
+    const message = document.querySelector("#order-lookup-message");
+    button.disabled = true;
+    message.textContent = "Memeriksa pesanan…";
+    try {
+      const order = await api.lookupOrder(Object.fromEntries(new FormData(form)));
+      api.rememberOrder(order);
+      message.textContent = `Pesanan ${order.orderCode} ditemukan.`;
+      await renderOrderHistory();
+      window.location.hash = "riwayat";
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupSectionPanels(); setupOrderLookup(); setupBackToTop(); });

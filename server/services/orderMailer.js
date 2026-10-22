@@ -30,6 +30,7 @@ async function sendOrderUpdateEmail({ to, recipientName, orderCode, subject, mes
 }
 
 function notifyOrderUpdate(payload) {
+  if (!payload?.to) return;
   setImmediate(() => sendOrderUpdateEmail(payload).catch(error => console.error("Gagal mengirim email pesanan:", error.message)));
 }
 

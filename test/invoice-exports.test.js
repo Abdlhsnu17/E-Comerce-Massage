@@ -42,3 +42,21 @@ test("Excel export neutralizes formula-like text", () => {
   assert.match(csv, /"'=HYPERLINK\(""https:\/\/example\.com""\)"/);
   assert.match(csv, /"'@SUM\(1,1\)"/);
 });
+
+test("PDF export creates a downloadable PDF document without print markup", () => {
+  const pdf = invoiceExports.createPdf({
+    orderCode: "AERA-1001",
+    recipientName: "Denisa",
+    paymentStatus: "Dibayar",
+    total: 175000,
+    items: [{ name: "Baby Spa", qty: 1, price: 175000 }]
+  });
+  const content = Buffer.from(pdf).toString("latin1");
+
+  assert.match(content, /^%PDF-1\.4/);
+  assert.match(content, /\(INVOICE\)/);
+  assert.match(content, /\(AERA-1001\)/);
+  assert.match(content, /\(LAYANAN\)[\s\S]*\(JUMLAH\)[\s\S]*\(HARGA\)[\s\S]*\(TOTAL\)/);
+  assert.match(content, /\(TOTAL\)[\s\S]*\(Rp175\.000\)/);
+  assert.doesNotMatch(content, /window\.print|<html/i);
+});
