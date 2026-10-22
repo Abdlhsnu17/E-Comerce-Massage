@@ -13,12 +13,12 @@ test("reschedule only accepts a real future appointment", () => {
   assert.equal(validFutureAppointment("not-a-date", "10:30", now), false);
 });
 
-test("fresh database schema contains every migration through 017", () => {
+test("fresh database schema contains every migration through 018", () => {
   const schema = fs.readFileSync(path.join(__dirname, "..", "database", "schema.sql"), "utf8");
   const migrationRunner = fs.readFileSync(path.join(__dirname, "..", "server", "scripts", "migrate.js"), "utf8");
 
-  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 017/);
-  assert.match(migrationRunner, /\["017_guest_checkout\.sql", "column", "guest_access_token_hash"\]/);
+  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 018/);
+  assert.match(migrationRunner, /\["018_patient_name\.sql", "column", "patient_name"\]/);
 
   for (const table of [
     "schema_migrations",
@@ -48,5 +48,6 @@ test("fresh database schema contains every migration through 017", () => {
   assert.match(schema, /CONSTRAINT fk_orders_therapist FOREIGN KEY \(therapist_id\)/);
   assert.match(schema, /guest_access_token_hash\s+CHAR\(64\) NULL/);
   assert.match(schema, /recipient_email\s+VARCHAR\(160\)\s+NULL/);
+  assert.match(schema, /patient_name\s+VARCHAR\(120\)\s+NOT NULL/);
   assert.match(schema, /user_id\s+INT UNSIGNED\s+NULL,[\s\S]*?guest_access_token_hash/);
 });

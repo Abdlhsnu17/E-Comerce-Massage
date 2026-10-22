@@ -4,9 +4,9 @@
 -- Jalankan untuk instalasi baru:
 --   mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 --
--- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 017
+-- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 018
 -- (booking, pembayaran, voucher, ulasan, audit admin, sesi, terapis, dan
--- checkout tamu).
+-- checkout tamu, dan nama pasien).
 -- File di database/migrations/ hanya diperlukan untuk database lama.
 -- =====================================================================
 
@@ -228,6 +228,7 @@ CREATE TABLE orders (
   service_location ENUM('studio','home') NOT NULL DEFAULT 'studio',
   appointment_status ENUM('Menunggu konfirmasi','Dikonfirmasi','Selesai','Dibatalkan') NOT NULL DEFAULT 'Menunggu konfirmasi',
   recipient_name    VARCHAR(120)   NOT NULL,
+  patient_name      VARCHAR(120)   NOT NULL,
   recipient_email   VARCHAR(160)   NULL,
   recipient_phone   VARCHAR(30)    NULL,
   shipping_address  TEXT           NOT NULL,

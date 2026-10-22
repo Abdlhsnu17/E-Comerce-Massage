@@ -200,6 +200,7 @@ async function createOrder(req, res, next) {
     appointmentTime,
     serviceLocation = "studio",
     recipientName,
+    patientName,
     recipientEmail,
     recipientPhone,
     address,
@@ -229,8 +230,10 @@ async function createOrder(req, res, next) {
   }
   const cleanEmail = String(recipientEmail || "").trim();
   const cleanPhone = String(recipientPhone || "").replace(/[^0-9+]/g, "");
-  if (!recipientName || !cleanPhone || !address) {
-    return res.status(400).json({ message: "Nama, nomor WhatsApp, dan alamat wajib diisi." });
+  const cleanRecipientName = String(recipientName || "").trim();
+  const cleanPatientName = String(patientName || "").trim();
+  if (!cleanRecipientName || !cleanPatientName || !cleanPhone || !address) {
+    return res.status(400).json({ message: "Nama orang tua, nama pasien, nomor WhatsApp, dan alamat wajib diisi." });
   }
   if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({ message: "Format email tidak valid." });
@@ -313,12 +316,12 @@ async function createOrder(req, res, next) {
       `INSERT INTO orders
         (order_code, user_id, guest_access_token_hash, status, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method, payment_due_at,
          appointment_date, appointment_time, service_duration_minutes, therapist_id, service_location,
-         recipient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+         recipient_name, patient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
         orderCode, req.user?.id || null, guestAccessToken ? tokenHash(guestAccessToken) : null, initialOrderStatus, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
         shippingMethod, paymentMethod, paymentDueAt, appointmentDate, appointmentTime, serviceDurationMinutes, assignedTherapist.id, serviceLocation,
-        recipientName, cleanEmail || null, cleanPhone,
+        cleanRecipientName, cleanPatientName, cleanEmail || null, cleanPhone,
         address, city || null, zip || null, notes || null
       ]
     );
@@ -344,7 +347,7 @@ async function createOrder(req, res, next) {
           ...lines.map(line => ({ id: line.id, name: line.name, price: Number(line.price), qty: line.qty })),
           ...(shippingCost ? [{ id: "shipping", name: "Biaya layanan", price: shippingCost, qty: 1 }] : [])
         ],
-        customer: { name: recipientName, email: cleanEmail, phone: cleanPhone }
+        customer: { name: cleanRecipientName, email: cleanEmail, phone: cleanPhone }
       });
       await connection.query(
         `UPDATE orders SET payment_gateway = 'midtrans', gateway_transaction_id = ?, qris_url = ? WHERE id = ?`,
@@ -358,7 +361,7 @@ async function createOrder(req, res, next) {
     await connection.commit();
     if (cleanEmail) notifyOrderUpdate({
       to: cleanEmail,
-      recipientName,
+      recipientName: cleanRecipientName,
       orderCode,
       subject: `Booking ${orderCode} diterima`,
       message: "Booking Anda sudah kami terima. Silakan selesaikan pembayaran sesuai metode yang dipilih.",
@@ -378,6 +381,7 @@ async function createOrder(req, res, next) {
       appointmentStatus: "Menunggu konfirmasi",
       appointmentDate,
       appointmentTime,
+      patientName: cleanPatientName,
       serviceLocation,
       paymentMethod,
       paymentDetails: paymentDetails(details, { qrisUrl: qris?.qrUrl })
@@ -510,7 +514,7 @@ async function listOrders(req, res, next) {
               total, shipping_method AS shippingMethod, payment_method AS paymentMethod,
               payment_status AS paymentStatus, qris_url AS qrisUrl, payment_due_at AS paymentDueAt,
               payment_proof_url AS paymentProofUrl,
-              recipient_name AS recipientName, recipient_email AS recipientEmail,
+              recipient_name AS recipientName, patient_name AS patientName, recipient_email AS recipientEmail,
               recipient_phone AS recipientPhone,
               appointment_date AS appointmentDate,
               TIME_FORMAT(appointment_time, '%H:%i') AS appointmentTime,

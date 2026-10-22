@@ -29,7 +29,8 @@
     const rows = [
       ["Invoice", order.orderCode],
       ["Tanggal pesanan", formatDate(order.createdAt)],
-      ["Nama pelanggan", order.customerName || order.recipientName],
+      ["Nama pasien", order.patientName || "-"],
+      ["Nama orang tua", order.customerName || order.recipientName],
       ["Email pelanggan", order.customerEmail || order.recipientEmail],
       ["Metode pembayaran", order.paymentMethod],
       ["Status pembayaran", order.paymentStatus],

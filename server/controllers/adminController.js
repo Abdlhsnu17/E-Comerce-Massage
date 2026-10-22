@@ -151,9 +151,9 @@ async function listAllOrders(req, res, next) {
       params.push(req.query.status);
     }
     if (req.query.q?.trim()) {
-      where.push("(o.order_code LIKE ? OR o.recipient_email LIKE ? OR o.recipient_name LIKE ?)");
+      where.push("(o.order_code LIKE ? OR o.recipient_email LIKE ? OR o.recipient_name LIKE ? OR o.patient_name LIKE ?)");
       const keyword = `%${req.query.q.trim()}%`;
-      params.push(keyword, keyword, keyword);
+      params.push(keyword, keyword, keyword, keyword);
     }
 
     const [orders] = await pool.query(
@@ -165,7 +165,7 @@ async function listAllOrders(req, res, next) {
               TIME_FORMAT(o.appointment_time, '%H:%i') AS appointmentTime,
               o.service_location AS serviceLocation, o.appointment_status AS appointmentStatus,
               o.therapist_id AS therapistId, t.name AS therapistName,
-              o.recipient_name AS recipientName, o.recipient_email AS recipientEmail,
+              o.recipient_name AS recipientName, o.patient_name AS patientName, o.recipient_email AS recipientEmail,
               o.recipient_phone AS recipientPhone, o.shipping_address AS address,
               o.shipping_city AS city, o.created_at AS createdAt,
               u.id AS userId, COALESCE(u.name, o.recipient_name) AS customerName,

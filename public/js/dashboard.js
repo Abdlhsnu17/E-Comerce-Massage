@@ -199,7 +199,7 @@ function renderOrders(orders) {
       ? `<a class="order-proof-link" href="${dashboardEsc(order.paymentProofUrl)}" target="_blank" rel="noopener">Lihat bukti</a>`
       : window.invoiceExports.actions(order.id);
     return `<tr>
-      <td><div class="order-identity"><strong>${dashboardEsc(order.orderCode)}</strong><span>${dashboardEsc(order.customerName || order.recipientName)}</span></div></td>
+      <td><div class="order-identity"><strong>${dashboardEsc(order.orderCode)}</strong><span>Pasien: ${dashboardEsc(order.patientName || "-")}</span><span>Orang tua: ${dashboardEsc(order.customerName || order.recipientName)}</span></div></td>
       <td><div class="order-booking"><strong>${services}</strong><span>${dashboardEsc(date)} · ${dashboardEsc(order.appointmentTime || "")} · ${dashboardEsc(location)}</span><small>${dashboardEsc(order.therapistName || "Belum ditetapkan")}</small></div></td>
       <td class="order-total">${dashboardMoney(order.total)}</td>
       <td>${proof}</td>
