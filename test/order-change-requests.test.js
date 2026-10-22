@@ -13,11 +13,13 @@ test("reschedule only accepts a real future appointment", () => {
   assert.equal(validFutureAppointment("not-a-date", "10:30", now), false);
 });
 
-test("fresh database schema contains every migration through 019", () => {
+test("fresh database schema contains every migration through 020", () => {
   const schema = fs.readFileSync(path.join(__dirname, "..", "database", "schema.sql"), "utf8");
   const migrationRunner = fs.readFileSync(path.join(__dirname, "..", "server", "scripts", "migrate.js"), "utf8");
 
-  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 019/);
+  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 020/);
+  assert.match(schema, /'EMBSPA', 'percent', 20, 10000, 2/);
+  assert.match(schema, /Pembukaan Layanan Home Care Massage Pijat Bayi & Ibu Hamil/);
   assert.match(migrationRunner, /\["019_required_order_access_token\.sql", "required_column", "guest_access_token_hash"\]/);
   assert.match(migrationRunner, /\["018_patient_name\.sql", "column", "patient_name"\]/);
 
