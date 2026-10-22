@@ -15,6 +15,11 @@ test("reschedule only accepts a real future appointment", () => {
 
 test("fresh database schema contains every migration through 017", () => {
   const schema = fs.readFileSync(path.join(__dirname, "..", "database", "schema.sql"), "utf8");
+  const migrationRunner = fs.readFileSync(path.join(__dirname, "..", "server", "scripts", "migrate.js"), "utf8");
+
+  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 017/);
+  assert.match(migrationRunner, /\["017_guest_checkout\.sql", "column", "guest_access_token_hash"\]/);
+
   for (const table of [
     "schema_migrations",
     "password_reset_tokens",

@@ -4,8 +4,9 @@
 -- Jalankan untuk instalasi baru:
 --   mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 --
--- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 016
--- (booking, pembayaran, voucher, ulasan, audit admin, sesi, dan terapis).
+-- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 017
+-- (booking, pembayaran, voucher, ulasan, audit admin, sesi, terapis, dan
+-- checkout tamu).
 -- File di database/migrations/ hanya diperlukan untuk database lama.
 -- =====================================================================
 
@@ -15,8 +16,8 @@ CREATE DATABASE IF NOT EXISTS sentuhan_kecil_db
 USE sentuhan_kecil_db;
 
 -- Ledger ini diisi otomatis oleh `npm run db:migrate`. Pada instalasi baru,
--- runner mengenali baseline 016 dari struktur di bawah dan tidak mengulang
--- migrasi lama. Migrasi baru setelah 016 akan dijalankan satu kali.
+-- runner mengenali baseline 017 dari struktur di bawah dan tidak mengulang
+-- migrasi lama. Migrasi baru setelah 017 akan dijalankan satu kali.
 CREATE TABLE schema_migrations (
   filename    VARCHAR(190) NOT NULL,
   checksum    CHAR(64)     NOT NULL,

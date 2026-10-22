@@ -30,6 +30,7 @@ const api = {
   categories: () => api.request("/categories"),
   announcements: () => api.request("/announcements"),
   siteContent: () => api.request("/site-content"),
+  coupons: () => api.request("/coupons"),
   cart: () => api.request("/cart"),
   // Nama metode mengikuti pemanggil UI agar aksi keranjang benar-benar
   // diteruskan ke endpoint REST yang sama.

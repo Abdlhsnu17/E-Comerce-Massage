@@ -96,6 +96,25 @@ img { display: block; max-width: 100%; }
 .service-item > a { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; color: var(--coral); font-size: 19px; transition: color .2s, background .2s; }
 .service-item > a:hover { color: white; background: var(--coral); }
 .service-disclaimer { margin: 18px 0 0; color: #80918b; font-size: 11px; }
+.voucher-section { padding-top: 0; background: var(--paper); }
+.voucher-panel { padding: 42px; border-radius: var(--radius-lg); background: linear-gradient(135deg, #effcf1, #fff0f7); }
+.voucher-panel__heading { display: flex; justify-content: space-between; align-items: end; gap: 45px; margin-bottom: 25px; }
+.voucher-panel__heading h2 { margin: 14px 0 0; font: 700 38px/1.13 var(--display); }
+.voucher-panel__heading h2 em { color: var(--coral); font-style: normal; }
+.voucher-panel__heading > p { max-width: 390px; margin: 0; color: var(--muted); font-size: 14px; }
+.voucher-grid { display: grid; gap: 13px; }
+.voucher-loading { margin: 0; color: var(--muted); }
+.voucher-card { display: grid; grid-template-columns: 100px 1fr auto; align-items: center; gap: 20px; padding: 20px; border: 1px dashed #98cbaa; border-radius: var(--radius-md); background: rgba(255,255,255,.88); }
+.voucher-card.is-claimed { border-style: solid; border-color: var(--coral); box-shadow: 0 10px 25px rgba(255,22,132,.08); }
+.voucher-card__discount { display: grid; place-content: center; min-height: 82px; border-radius: 14px; color: var(--deep); background: var(--mint); text-align: center; }
+.voucher-card__discount strong { font: 800 24px/1 var(--display); }
+.voucher-card__discount span { margin-top: 5px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.voucher-card__code { color: var(--coral-dark); font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+.voucher-card h3 { margin: 4px 0 2px; font: 700 18px var(--display); }
+.voucher-card p { margin: 0; color: var(--muted); font-size: 12px; }
+.voucher-claim { border: 0; cursor: pointer; white-space: nowrap; }
+.voucher-card.is-claimed .voucher-claim { color: var(--deep); background: var(--mint); }
+.voucher-claim-message { min-height: 24px; margin: 15px 0 -8px; color: var(--deep); font-size: 12px; font-weight: 700; }
 .care { overflow: hidden; padding: 68px 0; color: #f7f7ef; background: var(--deep); }
 .care__grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 88px; align-items: center; }
 .care__image { position: relative; padding: 0 22px 30px 0; }
@@ -230,6 +249,13 @@ img { display: block; max-width: 100%; }
   .main-nav { width: min(88vw, 340px); padding: 20px 20px 28px; }
   .button--nav { margin-left: auto; min-height: 39px; padding-inline: 11px; font-size: 10px; }
   .hero { padding: 51px 0 50px; }
+  .voucher-panel { padding: 28px 20px; }
+  .voucher-panel__heading { align-items: start; flex-direction: column; gap: 14px; }
+  .voucher-panel__heading h2 { font-size: 31px; }
+  .voucher-card { grid-template-columns: 76px 1fr; gap: 14px; padding: 15px; }
+  .voucher-card__discount { min-height: 70px; }
+  .voucher-card__discount strong { font-size: 19px; }
+  .voucher-claim { grid-column: 1 / -1; width: 100%; }
   .hero__grid { grid-template-columns: 1fr; gap: 24px; }
   .hero__copy { padding: 0; }
   .hero h1 { max-width: 480px; font-size: clamp(39px, 9vw, 52px); }

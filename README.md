@@ -145,6 +145,12 @@ Lalu terapkan dukungan multi-terapis:
 mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/016_therapists.sql
 ```
 
+Lalu terapkan dukungan checkout tanpa akun:
+
+```bash
+mysql -u root -h 127.0.0.1 -P 3306 sentuhan_kecil_db < database/migrations/017_guest_checkout.sql
+```
+
 3. Jalankan server:
 
 ```bash

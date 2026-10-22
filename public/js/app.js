@@ -4,6 +4,67 @@ let currentUser = null;
 const whatsappNumber = "6289634208909";
 const scheduleSelection = { date: "", time: "" };
 let paymentPollTimer = null;
+const claimedCouponKey = "aera_claimed_coupon";
+
+function getClaimedCoupon() {
+  try { return localStorage.getItem(claimedCouponKey) || ""; }
+  catch { return ""; }
+}
+
+function saveClaimedCoupon(code) {
+  try { localStorage.setItem(claimedCouponKey, code); }
+  catch { /* Checkout tetap bisa diisi pada sesi halaman saat ini. */ }
+}
+
+function couponDiscountLabel(coupon) {
+  return coupon.discountType === "percent"
+    ? `${Number(coupon.discountValue)}%`
+    : rupiah(coupon.discountValue);
+}
+
+async function loadCoupons() {
+  const section = document.querySelector("#voucher-promo");
+  const container = document.querySelector("#public-coupons");
+  if (!section || !container) return;
+  try {
+    const coupons = await api.coupons();
+    if (!coupons.length) {
+      try { localStorage.removeItem(claimedCouponKey); } catch { /* Penyimpanan browser mungkin dinonaktifkan. */ }
+      section.remove();
+      return;
+    }
+    let claimedCode = getClaimedCoupon();
+    if (claimedCode && !coupons.some(coupon => String(coupon.code) === claimedCode)) {
+      try { localStorage.removeItem(claimedCouponKey); } catch { /* Penyimpanan browser mungkin dinonaktifkan. */ }
+      claimedCode = "";
+    }
+    container.innerHTML = coupons.map(coupon => {
+      const code = String(coupon.code);
+      const claimed = code === claimedCode;
+      const minimum = Number(coupon.minimumOrder) > 0 ? `Min. transaksi ${rupiah(coupon.minimumOrder)}` : "Tanpa minimum transaksi";
+      const expiry = coupon.endsAt ? `Berlaku hingga ${new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(new Date(coupon.endsAt))}` : "Tanpa batas waktu";
+      return `<article class="voucher-card${claimed ? " is-claimed" : ""}"><div class="voucher-card__discount"><strong>${esc(couponDiscountLabel(coupon))}</strong><span>diskon</span></div><div class="voucher-card__copy"><span class="voucher-card__code">${esc(code)}</span><h3>Voucher perawatan Aera</h3><p>${esc(minimum)} · ${esc(expiry)}</p></div><button class="button button--primary voucher-claim" type="button" data-coupon-code="${esc(code)}">${claimed ? "Sudah diklaim ✓" : "Klaim voucher"}</button></article>`;
+    }).join("");
+    container.addEventListener("click", event => {
+      const button = event.target.closest("[data-coupon-code]");
+      if (!button) return;
+      const code = button.dataset.couponCode;
+      saveClaimedCoupon(code);
+      container.querySelectorAll(".voucher-card").forEach(card => {
+        const cardButton = card.querySelector("[data-coupon-code]");
+        const selected = cardButton.dataset.couponCode === code;
+        card.classList.toggle("is-claimed", selected);
+        cardButton.textContent = selected ? "Sudah diklaim ✓" : "Klaim voucher";
+      });
+      const checkoutCoupon = document.querySelector('#checkout-form [name="couponCode"]');
+      if (checkoutCoupon) checkoutCoupon.value = code;
+      const message = document.querySelector("#voucher-claim-message");
+      message.textContent = `Voucher ${code} berhasil diklaim dan akan otomatis digunakan saat checkout.`;
+    });
+  } catch {
+    section.remove();
+  }
+}
 
 function setupCurrentDateTime() {
   const dateElement = document.querySelector("#current-date");
@@ -186,7 +247,7 @@ async function renderOrderHistory() {
     history.hidden = false;
     const customerProfile = currentUser ? await api.profile().catch(() => ({})) : null;
     const profileMarkup = customerProfile ? `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details>` : "";
-    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan di perangkat ini.</p>"}`;
+    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Riwayat pembayaran</span><h3>Pesanan &amp; invoice Anda</h3></div>${orders.length ? orders.map(order => `<article class="order-card"><div><strong>${esc(order.orderCode)}</strong><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada riwayat pesanan di perangkat ini.</p>"}`;
     history.querySelector("#customer-profile-form")?.addEventListener("submit", async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -274,6 +335,8 @@ async function renderCart() {
     el.querySelector("#checkout-login")?.addEventListener("click", () => document.querySelector("#login-open").click());
     const form = el.querySelector("#checkout-form");
     if (form) {
+      const claimedCoupon = getClaimedCoupon();
+      if (claimedCoupon) form.elements.couponCode.value = claimedCoupon;
       const locationSelect = form.querySelector('[name="shippingMethod"]');
       locationSelect.name = "serviceLocation";
       locationSelect.innerHTML = '<option value="studio">Datang ke studio</option><option value="home">Kunjungan ke rumah</option>';
@@ -496,4 +559,4 @@ function setupOrderLookup() {
     }
   });
 }
-document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupSectionPanels(); setupOrderLookup(); setupBackToTop(); });
+document.addEventListener("DOMContentLoaded", () => { setupCurrentDateTime(); setupSchedulePicker(); loadStore(); loadCoupons(); loadSiteContent().catch(() => {}); renderCart(); setupAuth(); setupNavigation(); setupSectionPanels(); setupOrderLookup(); setupBackToTop(); });

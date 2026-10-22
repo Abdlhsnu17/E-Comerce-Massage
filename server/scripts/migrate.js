@@ -34,6 +34,7 @@ async function objectExists(connection, type, name) {
 // ledger. Marker dipilih dari perubahan terakhir yang bersifat berurutan.
 async function detectLegacyBaseline(connection) {
   const markers = [
+    ["017_guest_checkout.sql", "column", "guest_access_token_hash"],
     ["016_therapists.sql", "column", "therapist_id"],
     ["015_session_version.sql", "column", "session_version"],
     ["014_admin_audit_logs.sql", "table", "admin_audit_logs"],

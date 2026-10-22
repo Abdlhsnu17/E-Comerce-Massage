@@ -515,6 +515,7 @@ async function listOrders(req, res, next) {
               appointment_date AS appointmentDate,
               TIME_FORMAT(appointment_time, '%H:%i') AS appointmentTime,
               service_location AS serviceLocation, appointment_status AS appointmentStatus,
+              (SELECT t.name FROM therapists t WHERE t.id = orders.therapist_id) AS therapistName,
               EXISTS(SELECT 1 FROM service_reviews sr WHERE sr.order_id = orders.id) AS hasReview,
               (SELECT r.status FROM order_change_requests r WHERE r.order_id = orders.id ORDER BY r.created_at DESC LIMIT 1) AS changeRequestStatus,
               (SELECT r.request_type FROM order_change_requests r WHERE r.order_id = orders.id ORDER BY r.created_at DESC LIMIT 1) AS changeRequestType,
