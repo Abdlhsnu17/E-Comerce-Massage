@@ -23,10 +23,12 @@ function connectionOptions() {
 }
 
 async function objectExists(connection, type, name) {
-  const source = type === "column" ? "information_schema.COLUMNS" : "information_schema.TABLES";
-  const field = type === "column" ? "COLUMN_NAME" : "TABLE_NAME";
+  const isColumn = type === "column" || type === "required_column";
+  const source = isColumn ? "information_schema.COLUMNS" : "information_schema.TABLES";
+  const field = isColumn ? "COLUMN_NAME" : "TABLE_NAME";
+  const required = type === "required_column" ? " AND IS_NULLABLE = 'NO'" : "";
   const [rows] = await connection.query(
-    `SELECT 1 FROM ${source} WHERE TABLE_SCHEMA = DATABASE() AND ${field} = ? LIMIT 1`,
+    `SELECT 1 FROM ${source} WHERE TABLE_SCHEMA = DATABASE() AND ${field} = ?${required} LIMIT 1`,
     [name]
   );
   return rows.length > 0;
@@ -36,6 +38,7 @@ async function objectExists(connection, type, name) {
 // ledger. Marker dipilih dari perubahan terakhir yang bersifat berurutan.
 async function detectLegacyBaseline(connection) {
   const markers = [
+    ["019_required_order_access_token.sql", "required_column", "guest_access_token_hash"],
     ["018_patient_name.sql", "column", "patient_name"],
     ["017_guest_checkout.sql", "column", "guest_access_token_hash"],
     ["016_therapists.sql", "column", "therapist_id"],

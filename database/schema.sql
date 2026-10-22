@@ -4,9 +4,9 @@
 -- Jalankan untuk instalasi baru:
 --   mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 --
--- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 018
+-- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 019
 -- (booking, pembayaran, voucher, ulasan, audit admin, sesi, terapis, dan
--- checkout tamu, dan nama pasien).
+-- token akses pesanan, checkout tamu, dan nama pasien).
 -- File di database/migrations/ hanya diperlukan untuk database lama.
 -- =====================================================================
 
@@ -16,8 +16,8 @@ CREATE DATABASE IF NOT EXISTS sentuhan_kecil_db
 USE sentuhan_kecil_db;
 
 -- Ledger ini diisi otomatis oleh `npm run db:migrate`. Pada instalasi baru,
--- runner mengenali baseline 017 dari struktur di bawah dan tidak mengulang
--- migrasi lama. Migrasi baru setelah 017 akan dijalankan satu kali.
+-- runner mengenali baseline 019 dari struktur di bawah dan tidak mengulang
+-- migrasi lama. Migrasi baru setelah 019 akan dijalankan satu kali.
 CREATE TABLE schema_migrations (
   filename    VARCHAR(190) NOT NULL,
   checksum    CHAR(64)     NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE orders (
   id                INT UNSIGNED   NOT NULL AUTO_INCREMENT,
   order_code        VARCHAR(30)    NOT NULL,
   user_id           INT UNSIGNED   NULL,
-  guest_access_token_hash CHAR(64) NULL,
+  guest_access_token_hash CHAR(64) NOT NULL,
   status            ENUM('Menunggu pembayaran','Menunggu konfirmasi','Terkonfirmasi','Dalam pelayanan','Selesai','Dibatalkan')
                       NOT NULL DEFAULT 'Menunggu pembayaran',
   subtotal          DECIMAL(12, 2) NOT NULL,
