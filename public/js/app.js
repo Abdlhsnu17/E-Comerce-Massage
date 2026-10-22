@@ -261,6 +261,20 @@ function invoiceMarkup(order) {
   return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>${finalInvoice ? "INVOICE" : "RINGKASAN BOOKING"}</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${completionNote}${finalInvoice ? window.invoiceExports.actions(order.id) : ""}${review}</article>`;
 }
 
+function isActiveOrder(order) {
+  const inactivePayments = ["Kedaluwarsa", "Gagal", "Dibatalkan", "Dikembalikan"];
+  return order.status !== "Dibatalkan"
+    && order.status !== "Selesai"
+    && order.appointmentStatus !== "Dibatalkan"
+    && order.appointmentStatus !== "Selesai"
+    && !inactivePayments.includes(order.paymentStatus);
+}
+
+function orderCardMarkup(order) {
+  const canRequestChange = isActiveOrder(order) && order.changeRequestStatus !== "Menunggu";
+  return `<article class="order-card" data-order-card="${Number(order.id)}"><div><strong>${esc(order.orderCode)}</strong><p>Pasien: <b>${esc(order.patientName || "-")}</b></p><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${canRequestChange ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`;
+}
+
 function reviewMarkup(order) {
   const orderId = Number(order.id);
   if (order.hasReview) return `<div class="review-section"><p class="review-sent" role="status"><span aria-hidden="true">♥</span> Ulasan sudah dikirim ke admin.</p></div>`;
@@ -280,13 +294,20 @@ async function renderOrderHistory() {
       recipientEmail: order.recipientEmail || currentUser?.email
     })));
     history.hidden = false;
-    const selectedOrder = activeOrderId
-      ? orders.find(order => Number(order.id) === Number(activeOrderId))
-      : orders[0];
-    const visibleOrders = selectedOrder ? [selectedOrder] : [];
+    const activeOrders = orders.filter(isActiveOrder);
+    const archivedOrders = orders.filter(order => !isActiveOrder(order));
+    if (activeOrderId) {
+      activeOrders.sort((a, b) => Number(b.id === activeOrderId) - Number(a.id === activeOrderId));
+    }
     const customerProfile = currentUser ? await api.profile().catch(() => ({})) : null;
     const profileMarkup = customerProfile ? `<details class="customer-profile"><summary><span>Profil keluarga</span><small>Simpan data bayi untuk booking lebih cepat</small></summary><form id="customer-profile-form" class="checkout-form"><input name="childName" value="${esc(customerProfile.childName || "")}" placeholder="Nama bayi / anak"><label>Tanggal lahir anak<input name="childBirthDate" type="date" value="${esc(customerProfile.childBirthDate || "")}"></label><textarea name="allergies" placeholder="Alergi atau kondisi yang perlu diperhatikan">${esc(customerProfile.allergies || "")}</textarea><textarea name="careNotes" placeholder="Catatan perawatan khusus">${esc(customerProfile.careNotes || "")}</textarea><textarea name="defaultAddress" placeholder="Alamat utama untuk home care">${esc(customerProfile.defaultAddress || "")}</textarea><div class="profile-inline"><input name="defaultCity" value="${esc(customerProfile.defaultCity || "")}" placeholder="Kota"><input name="defaultZip" value="${esc(customerProfile.defaultZip || "")}" placeholder="Kode pos"></div><button class="button button--primary" type="submit">Simpan profil</button><p class="store-muted" role="status"></p></form></details>` : "";
-    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Pembayaran terbaru</span><h3>Pesanan &amp; invoice Anda</h3></div>${visibleOrders.length ? visibleOrders.map(order => `<article class="order-card" data-order-card="${Number(order.id)}"><div><strong>${esc(order.orderCode)}</strong><p>Pasien: <b>${esc(order.patientName || "-")}</b></p><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${order.status !== "Dibatalkan" && order.appointmentStatus !== "Selesai" && order.changeRequestStatus !== "Menunggu" ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`).join("") : "<p class=\"store-muted\">Belum ada pesanan di perangkat ini.</p>"}`;
+    const activeMarkup = activeOrders.length
+      ? activeOrders.map(orderCardMarkup).join("")
+      : '<p class="store-muted order-list-empty">Tidak ada pesanan aktif.</p>';
+    const archiveMarkup = archivedOrders.length
+      ? `<details class="order-archive"><summary>Riwayat pesanan <span>${archivedOrders.length}</span></summary><div class="order-archive__list">${archivedOrders.map(orderCardMarkup).join("")}</div></details>`
+      : "";
+    history.innerHTML = `${profileMarkup}<div class="order-history__heading"><span class="eyebrow"><i></i> Pesanan aktif</span><h3>Pembayaran &amp; booking Anda</h3><p>Setiap pesanan ditampilkan terpisah dan tidak menggantikan pesanan lainnya.</p></div>${activeMarkup}${archiveMarkup}`;
     history.querySelector("#customer-profile-form")?.addEventListener("submit", async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -324,7 +345,7 @@ async function renderOrderHistory() {
     }));
     history.querySelectorAll("[data-reschedule-order]").forEach(button => button.addEventListener("click", async () => { const appointmentDate = prompt("Tanggal baru (YYYY-MM-DD):"); const appointmentTime = prompt("Jam baru (HH:MM):"); if (!appointmentDate || !appointmentTime) return; try { alert((await api.requestOrderChange(button.dataset.rescheduleOrder, { requestType: "reschedule", appointmentDate, appointmentTime })).message); } catch (error) { alert(error.message); } }));
     bindPaymentProofForms(history);
-    const pendingQris = visibleOrders.filter(order => order.paymentMethod === "QRIS" && order.paymentDetails?.qrisAutomatic && order.paymentStatus === "Menunggu pembayaran");
+    const pendingQris = activeOrders.filter(order => order.paymentMethod === "QRIS" && order.paymentDetails?.qrisAutomatic && order.paymentStatus === "Menunggu pembayaran");
     if (pendingQris.length) {
       paymentPollTimer = setTimeout(async () => {
         const results = await Promise.allSettled(pendingQris.map(order => api.refreshPayment(order.id)));
@@ -433,6 +454,7 @@ async function renderCart() {
       } catch (error) {
         message.textContent = error.message;
         submit.disabled = false;
+        submit.textContent = "Coba buat pesanan lagi";
       }
       };
     }
@@ -585,12 +607,15 @@ function setupOrderLookup() {
     button.disabled = true;
     message.textContent = "Memeriksa pesanan…";
     try {
-      const order = await api.lookupOrder(Object.fromEntries(new FormData(form)));
+      const values = Object.fromEntries(new FormData(form));
+      values.orderCode = String(values.orderCode || "").trim().toUpperCase().replace(/[‐‑‒–—―]/g, "-").replace(/\s+/g, "");
+      values.phone = String(values.phone || "").replace(/[^0-9+]/g, "");
+      const order = await api.lookupOrder(values);
       api.rememberOrder(order);
       activeOrderId = Number(order.id);
       message.textContent = `Pesanan ${order.orderCode} ditemukan.`;
       await renderOrderHistory();
-      window.location.hash = "riwayat";
+      window.location.hash = "keranjang";
     } catch (error) {
       message.textContent = error.message;
     } finally {

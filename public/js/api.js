@@ -17,10 +17,23 @@ const api = {
     return document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("lokamart_csrf="))?.slice("lokamart_csrf=".length) || "";
   },
   async request(path, options = {}) {
+    const { timeoutMs = 30_000, ...fetchOptions } = options;
     const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
-    const unsafe = !["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase());
-    const headers = { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...(unsafe ? { "X-CSRF-Token": api.csrfToken() } : {}), ...(options.headers || {}) };
-    const response = await fetch(`/api${path}`, { credentials: "include", ...options, headers });
+    const unsafe = !["GET", "HEAD", "OPTIONS"].includes((fetchOptions.method || "GET").toUpperCase());
+    const headers = { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...(unsafe ? { "X-CSRF-Token": api.csrfToken() } : {}), ...(fetchOptions.headers || {}) };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetch(`/api${path}`, { credentials: "include", ...fetchOptions, headers, signal: controller.signal });
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        throw new Error("Server terlalu lama merespons. Pastikan server dan database aktif, lalu coba lagi.");
+      }
+      throw new Error("Tidak dapat terhubung ke server. Pastikan aplikasi server sedang berjalan.");
+    } finally {
+      clearTimeout(timeout);
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || "Permintaan gagal.");
     return data;

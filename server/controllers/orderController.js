@@ -96,14 +96,24 @@ function listOrderAccess(req) {
 
 function normalizedPhone(value) {
   let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("0062")) digits = digits.slice(2);
+  if (digits.startsWith("620")) digits = `62${digits.slice(3)}`;
   if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
   else if (digits.startsWith("8")) digits = `62${digits}`;
   return digits;
 }
 
+function normalizedOrderCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/\s+/g, "");
+}
+
 async function lookupOrder(req, res, next) {
   try {
-    const orderCode = String(req.body.orderCode || "").trim().toUpperCase();
+    const orderCode = normalizedOrderCode(req.body.orderCode);
     const phone = normalizedPhone(req.body.phone);
     if (!/^AERA-[A-Z0-9-]{6,40}$/.test(orderCode) || phone.length < 9) {
       return res.status(400).json({ message: "Kode pesanan atau nomor WhatsApp tidak valid." });
