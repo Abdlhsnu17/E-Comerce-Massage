@@ -198,10 +198,17 @@ async function loadStore() {
 }
 
 function paymentInstructions(order) {
-  const deadline = order.paymentDueAt
-    ? new Date(order.paymentDueAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })
+  const paymentDueAt = order.paymentDueAt ? new Date(order.paymentDueAt) : null;
+  const validPaymentDueAt = paymentDueAt && !Number.isNaN(paymentDueAt.getTime());
+  const deadlineDate = validPaymentDueAt
+    ? paymentDueAt.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })
     : "";
-  const deadlineCopy = deadline ? `<small class="payment-deadline">Bayar sebelum ${esc(deadline)}. Setelah itu slot dilepas otomatis.</small>` : "";
+  const deadlineTime = validPaymentDueAt
+    ? paymentDueAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Jakarta" })
+    : "";
+  const deadlineCopy = validPaymentDueAt
+    ? `<small class="payment-deadline">Batas waktu pembayaran: ${esc(deadlineDate)} pukul ${esc(deadlineTime)} WIB. Jika pembayaran belum diterima hingga batas waktu tersebut, reservasi akan dibatalkan dan slot jadwal akan tersedia kembali secara otomatis.</small>`
+    : "";
   if (order.paymentMethod === "QRIS") {
     const hasQrisImage = Boolean(order.paymentDetails?.qrisImageUrl);
     const automatic = order.paymentDetails?.qrisAutomatic === true;

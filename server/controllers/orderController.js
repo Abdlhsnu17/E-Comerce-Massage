@@ -323,9 +323,13 @@ async function createOrder(req, res, next) {
     const assignedTherapist = assignAvailableTherapist({ time: appointmentTime, durationMinutes: serviceDurationMinutes, settings, bookings: occupiedSlots, therapists });
 
     const initialOrderStatus = paymentMethod === "Tunai" ? "Menunggu konfirmasi" : "Menunggu pembayaran";
-    const paymentDueAt = paymentMethod === "QRIS"
-      ? new Date(Date.now() + QRIS_PAYMENT_MINUTES * 60_000)
-      : paymentMethod === "Transfer Bank" ? new Date(Date.now() + TRANSFER_PAYMENT_HOURS * 3_600_000) : null;
+    // Buat dan bandingkan tenggat memakai jam database yang sama. Mengirim objek
+    // Date dari Node dapat bergeser ketika timezone proses aplikasi berbeda dari
+    // timezone MySQL (misalnya Node UTC, MySQL Asia/Jakarta), sehingga pesanan
+    // QRIS yang baru dibuat langsung dianggap kedaluwarsa.
+    const paymentDeadlineMinutes = paymentMethod === "QRIS"
+      ? QRIS_PAYMENT_MINUTES
+      : paymentMethod === "Transfer Bank" ? TRANSFER_PAYMENT_HOURS * 60 : null;
     // Akses pembayaran tidak boleh bergantung pada sesi login. Token pesanan
     // selalu dibuat, termasuk bila browser masih membawa cookie akun lama,
     // agar QRIS tetap dapat dipantau setelah pengguna keluar atau fitur akun
@@ -336,10 +340,13 @@ async function createOrder(req, res, next) {
         (order_code, user_id, guest_access_token_hash, status, subtotal, discount_code, discount_amount, shipping_cost, total, shipping_method, payment_method, payment_due_at,
          appointment_date, appointment_time, service_duration_minutes, therapist_id, service_location,
          recipient_name, patient_name, recipient_email, recipient_phone, shipping_address, shipping_city, shipping_zip, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               IF(? IS NULL, NULL, DATE_ADD(NOW(), INTERVAL ? MINUTE)),
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
         orderCode, req.user?.id || null, tokenHash(guestAccessToken), initialOrderStatus, subtotal, appliedCoupon?.code || null, discountAmount, shippingCost, subtotal - discountAmount + shippingCost,
-        shippingMethod, paymentMethod, paymentDueAt, appointmentDate, appointmentTime, serviceDurationMinutes, assignedTherapist.id, serviceLocation,
+        shippingMethod, paymentMethod, paymentDeadlineMinutes, paymentDeadlineMinutes,
+        appointmentDate, appointmentTime, serviceDurationMinutes, assignedTherapist.id, serviceLocation,
         cleanRecipientName, cleanPatientName, cleanEmail || null, cleanPhone,
         address, city || null, zip || null, notes || null
       ]
@@ -387,6 +394,12 @@ async function createOrder(req, res, next) {
 
     // Keranjang dikosongkan di transaksi yang sama dengan pembuatan pesanan.
     await connection.query("DELETE FROM cart_items WHERE cart_id = ?", [cartId]);
+
+    const [[deadline]] = await connection.query(
+      "SELECT payment_due_at AS paymentDueAt FROM orders WHERE id = ?",
+      [orderResult.insertId]
+    );
+    const paymentDueAt = deadline?.paymentDueAt || null;
 
     await connection.commit();
     if (cleanEmail) notifyOrderUpdate({
@@ -538,9 +551,9 @@ async function changePaymentMethod(req, res, next) {
 
     let qris = null;
     let paymentReference = null;
-    let dueAt = new Date(Date.now() + TRANSFER_PAYMENT_HOURS * 3_600_000);
+    let deadlineMinutes = TRANSFER_PAYMENT_HOURS * 60;
     if (paymentMethod === "QRIS") {
-      dueAt = new Date(Date.now() + QRIS_PAYMENT_MINUTES * 60_000);
+      deadlineMinutes = QRIS_PAYMENT_MINUTES;
       const staticQrisUrl = process.env.QRIS_IMAGE_URL?.trim();
       if (process.env.MIDTRANS_SERVER_KEY?.trim()) {
         paymentReference = `${order.orderCode}-P${Date.now().toString(36).toUpperCase()}`;
@@ -558,14 +571,20 @@ async function changePaymentMethod(req, res, next) {
     }
 
     await connection.query(
-      `UPDATE orders SET payment_method = ?, payment_due_at = ?, payment_updated_at = NOW(),
+      `UPDATE orders SET payment_method = ?,
+              payment_due_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), payment_updated_at = NOW(),
               payment_gateway = ?, payment_reference = ?, gateway_transaction_id = ?, qris_url = ?,
               payment_proof_url = NULL, payment_proof_uploaded_at = NULL
         WHERE id = ?`,
-      [paymentMethod, dueAt,
+      [paymentMethod, deadlineMinutes,
         paymentMethod === "QRIS" ? (qris.automatic === false ? "static-qris" : "midtrans") : null,
         paymentReference, qris?.transactionId || null, qris?.qrUrl || null, order.id]
     );
+    const [[deadline]] = await connection.query(
+      "SELECT payment_due_at AS paymentDueAt FROM orders WHERE id = ?",
+      [order.id]
+    );
+    const dueAt = deadline.paymentDueAt;
     await connection.commit();
     const details = await getPaymentDetails();
     if (order.recipientEmail) notifyOrderUpdate({

@@ -15,7 +15,7 @@ test("customer payment method switch is exposed end-to-end", () => {
   assert.match(routes, /post\("\/orders\/:id\/payment-method", changePaymentMethod\)/);
   assert.match(routes, /patch\("\/orders\/:id\/payment-method", changePaymentMethod\)/);
   assert.match(controller, /order\.paymentStatus !== "Menunggu pembayaran"/);
-  assert.match(controller, /payment_method = \?, payment_due_at = \?/);
+  assert.match(controller, /payment_method = \?,\s+payment_due_at = DATE_ADD\(NOW\(\), INTERVAL \? MINUTE\)/);
   assert.match(controller, /payment_reference = \?/);
   assert.match(controller, /COALESCE\(payment_reference, order_code\) = \?/);
   assert.match(api, /changePaymentMethod:.*method: "POST"/);
