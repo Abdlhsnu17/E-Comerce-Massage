@@ -19,6 +19,9 @@ router.get("/orders", listOrders);
 router.post("/orders/lookup", orderLookupLimit, lookupOrder);
 router.post("/orders", createOrder);
 router.post("/orders/:id/change-request", requestOrderChange);
+// POST menjadi metode utama agar tetap bekerja pada proxy/hosting yang tidak
+// meneruskan PATCH. Route PATCH dipertahankan untuk kompatibilitas klien lama.
+router.post("/orders/:id/payment-method", changePaymentMethod);
 router.patch("/orders/:id/payment-method", changePaymentMethod);
 router.post("/orders/:orderId/review", requireAuth, createReview);
 router.post("/orders/:id/payment-proof", receiveImage, uploadPaymentProof);

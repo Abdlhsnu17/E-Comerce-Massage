@@ -12,12 +12,13 @@ test("customer payment method switch is exposed end-to-end", () => {
   const api = read("public/js/api.js");
   const app = read("public/js/app.js");
 
+  assert.match(routes, /post\("\/orders\/:id\/payment-method", changePaymentMethod\)/);
   assert.match(routes, /patch\("\/orders\/:id\/payment-method", changePaymentMethod\)/);
   assert.match(controller, /order\.paymentStatus !== "Menunggu pembayaran"/);
   assert.match(controller, /payment_method = \?, payment_due_at = \?/);
   assert.match(controller, /payment_reference = \?/);
   assert.match(controller, /COALESCE\(payment_reference, order_code\) = \?/);
-  assert.match(api, /changePaymentMethod:/);
+  assert.match(api, /changePaymentMethod:.*method: "POST"/);
   assert.match(app, /Ganti ke Transfer Bank/);
   assert.match(app, /Ganti ke QRIS/);
 });

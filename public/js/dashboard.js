@@ -839,6 +839,29 @@ document.querySelector("#password-form").addEventListener("submit", async event 
   }
 });
 const userForm = document.querySelector("#user-form");
+const userPasswordInput = userForm.elements.password;
+const userPasswordConfirmationInput = userForm.elements.confirmPassword;
+
+function validateUserPasswordConfirmation({ showMessage = false } = {}) {
+  const isEditing = Boolean(userForm.elements.id.value);
+  const mismatched = !isEditing
+    && userPasswordConfirmationInput.value.length > 0
+    && userPasswordInput.value !== userPasswordConfirmationInput.value;
+  const errorMessage = mismatched ? "Password awal dan ulangi password harus sama." : "";
+
+  userPasswordConfirmationInput.setCustomValidity(errorMessage);
+  if (showMessage || !mismatched) {
+    document.querySelector("#user-form-message").textContent = errorMessage;
+  }
+  return !mismatched;
+}
+
+[userPasswordInput, userPasswordConfirmationInput].forEach(input => {
+  input.addEventListener("input", () => validateUserPasswordConfirmation({
+    showMessage: userPasswordConfirmationInput.value.length > 0
+  }));
+});
+
 function openUserForm(user = null) {
   userForm.reset();
   userForm.elements.id.value = user?.id || "";
@@ -855,6 +878,7 @@ function openUserForm(user = null) {
   userForm.elements.password.disabled = editing;
   userForm.elements.confirmPassword.disabled = editing;
   document.querySelector("#user-form-message").textContent = "";
+  userPasswordConfirmationInput.setCustomValidity("");
   userForm.hidden = false;
   userForm.elements.name.focus();
   userForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -865,8 +889,9 @@ userForm.addEventListener("submit", async event => {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(userForm));
   const message = document.querySelector("#user-form-message");
-  if (!values.id && values.password !== values.confirmPassword) {
-    message.textContent = "Konfirmasi password tidak sama.";
+  if (!validateUserPasswordConfirmation({ showMessage: true })) {
+    userPasswordConfirmationInput.focus();
+    userPasswordConfirmationInput.reportValidity();
     return;
   }
   const button = document.querySelector("#save-user-button");
