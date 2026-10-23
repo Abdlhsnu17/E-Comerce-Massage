@@ -70,6 +70,7 @@ const api = {
   createOrder: body => api.request("/orders", { method: "POST", body: JSON.stringify(body) }),
   lookupOrder: body => api.request("/orders/lookup", { method: "POST", body: JSON.stringify(body) }),
   requestOrderChange: (orderId, body) => api.request(`/orders/${orderId}/change-request`, { method: "POST", headers: api.orderHeaders(orderId), body: JSON.stringify(body) }),
+  changePaymentMethod: (orderId, paymentMethod) => api.request(`/orders/${orderId}/payment-method`, { method: "PATCH", headers: api.orderHeaders(orderId), body: JSON.stringify({ paymentMethod }) }),
   createReview: (orderId, body) => api.request(`/orders/${orderId}/review`, { method: "POST", body: JSON.stringify(body) }),
   uploadPaymentProof: (orderId, file) => { const body = new FormData(); body.append("image", file); return api.request(`/orders/${orderId}/payment-proof`, { method: "POST", headers: api.orderHeaders(orderId), body }); },
   refreshPayment: orderId => api.request(`/orders/${orderId}/payment/refresh`, { method: "POST", headers: api.orderHeaders(orderId) }),

@@ -13,14 +13,15 @@ test("reschedule only accepts a real future appointment", () => {
   assert.equal(validFutureAppointment("not-a-date", "10:30", now), false);
 });
 
-test("fresh database schema contains every migration through 020", () => {
+test("fresh database schema contains every migration through 021", () => {
   const schema = fs.readFileSync(path.join(__dirname, "..", "database", "schema.sql"), "utf8");
   const migrationRunner = fs.readFileSync(path.join(__dirname, "..", "server", "scripts", "migrate.js"), "utf8");
 
-  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 020/);
+  assert.match(schema, /Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 021/);
   assert.match(schema, /'EMBSPA', 'percent', 20, 10000, 2/);
   assert.match(schema, /Pembukaan Layanan Home Care Massage Pijat Bayi & Ibu Hamil/);
   assert.match(migrationRunner, /\["019_required_order_access_token\.sql", "required_column", "guest_access_token_hash"\]/);
+  assert.match(migrationRunner, /\["021_change_payment_method\.sql", "column", "payment_reference"\]/);
   assert.match(migrationRunner, /\["018_patient_name\.sql", "column", "patient_name"\]/);
 
   for (const table of [
@@ -43,6 +44,7 @@ test("fresh database schema contains every migration through 020", () => {
   assert.match(schema, /payment_status\s+ENUM\([\s\S]*?'Menunggu verifikasi'[\s\S]*?'Dikembalikan'/);
   assert.match(schema, /payment_due_at\s+DATETIME/);
   assert.match(schema, /payment_proof_url\s+VARCHAR\(500\)/);
+  assert.match(schema, /payment_reference\s+VARCHAR\(100\)/);
   assert.match(schema, /discount_code\s+VARCHAR\(40\)/);
   assert.match(schema, /discount_amount\s+DECIMAL\(12, 2\)/);
   assert.match(schema, /service_duration_minutes\s+SMALLINT UNSIGNED/);

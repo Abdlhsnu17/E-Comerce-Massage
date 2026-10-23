@@ -1,6 +1,6 @@
 const express = require("express");
 const { getCart, addItem, updateItem, removeItem } = require("../controllers/cartController");
-const { createOrder, lookupOrder, getAvailability, requestOrderChange, listOrders, uploadPaymentProof, refreshPayment, midtransNotification } = require("../controllers/orderController");
+const { createOrder, lookupOrder, getAvailability, requestOrderChange, listOrders, changePaymentMethod, uploadPaymentProof, refreshPayment, midtransNotification } = require("../controllers/orderController");
 const { listFavorites, toggleFavorite, subscribeNewsletter } = require("../controllers/favoriteController");
 const { requireAuth } = require("../middleware/auth");
 const { createReview } = require("../controllers/reviewController");
@@ -19,6 +19,7 @@ router.get("/orders", listOrders);
 router.post("/orders/lookup", orderLookupLimit, lookupOrder);
 router.post("/orders", createOrder);
 router.post("/orders/:id/change-request", requestOrderChange);
+router.patch("/orders/:id/payment-method", changePaymentMethod);
 router.post("/orders/:orderId/review", requireAuth, createReview);
 router.post("/orders/:id/payment-proof", receiveImage, uploadPaymentProof);
 router.post("/orders/:id/payment/refresh", refreshPayment);

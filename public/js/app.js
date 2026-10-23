@@ -212,11 +212,11 @@ function paymentInstructions(order) {
     const confirmation = automatic
       ? '<small class="payment-auto-status">Status pembayaran diperiksa otomatis…</small>'
       : `<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti pembayaran QRIS<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><button class="button button--primary" type="submit">Kirim bukti pembayaran</button><small role="status">Setelah dikirim, pembayaran akan diverifikasi admin.</small></form>`;
-    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p>${deadlineCopy}${confirmation}</div></div>`;
+    return `<div class="payment-instructions payment-instructions--qris">${qrisImage}<div><strong>Bayar ${rupiah(order.total)}</strong><p>${message}</p>${deadlineCopy}${confirmation}<button class="button payment-method-switch" type="button" data-payment-method-order="${Number(order.id)}" data-payment-method="Transfer Bank">Ganti ke Transfer Bank</button></div></div>`;
   }
   if (order.paymentMethod === "Transfer Bank") {
     const details = order.paymentDetails || {};
-    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p>${deadlineCopy}<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti transfer<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><button class="button button--primary" type="submit">Kirim bukti transfer</button><small role="status">JPEG, PNG, atau WEBP maksimal 5 MB. Status akan menjadi “Menunggu verifikasi”.</small></form></div></div>`;
+    return `<div class="payment-instructions"><div><strong>Transfer ${esc(details.bankName || "Bank Mandiri")}</strong><p>No. rekening: <b>${esc(details.bankAccountNumber || "9000050103739")}</b><br>a.n. <b>${esc(details.bankAccountHolder || "HAFSAH QUROTUN AINI")}</b><br>Transfer tepat sebesar: <b>${rupiah(order.total)}</b></p>${deadlineCopy}<form class="payment-proof-form" data-proof-order="${Number(order.id)}"><label>Bukti transfer<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><button class="button button--primary" type="submit">Kirim bukti transfer</button><small role="status">JPEG, PNG, atau WEBP maksimal 5 MB. Status akan menjadi “Menunggu verifikasi”.</small></form><button class="button payment-method-switch" type="button" data-payment-method-order="${Number(order.id)}" data-payment-method="QRIS">Ganti ke QRIS</button></div></div>`;
   }
   return `<div class="payment-instructions"><div><strong>Bayar tunai</strong><p>Siapkan <b>${rupiah(order.total)}</b> dan lakukan pembayaran kepada petugas saat sesi berlangsung.</p></div></div>`;
 }
@@ -344,6 +344,13 @@ async function renderOrderHistory() {
       }
     }));
     history.querySelectorAll("[data-reschedule-order]").forEach(button => button.addEventListener("click", async () => { const appointmentDate = prompt("Tanggal baru (YYYY-MM-DD):"); const appointmentTime = prompt("Jam baru (HH:MM):"); if (!appointmentDate || !appointmentTime) return; try { alert((await api.requestOrderChange(button.dataset.rescheduleOrder, { requestType: "reschedule", appointmentDate, appointmentTime })).message); } catch (error) { alert(error.message); } }));
+    history.querySelectorAll("[data-payment-method-order]").forEach(button => button.addEventListener("click", async () => {
+      const nextMethod = button.dataset.paymentMethod;
+      if (!confirm(`Ganti metode pembayaran ke ${nextMethod}? Instruksi pembayaran sebelumnya tidak berlaku lagi.`)) return;
+      button.disabled = true;
+      try { await api.changePaymentMethod(button.dataset.paymentMethodOrder, nextMethod); await renderOrderHistory(); }
+      catch (error) { alert(error.message); button.disabled = false; }
+    }));
     bindPaymentProofForms(history);
     const pendingQris = activeOrders.filter(order => order.paymentMethod === "QRIS" && order.paymentDetails?.qrisAutomatic && order.paymentStatus === "Menunggu pembayaran");
     if (pendingQris.length) {

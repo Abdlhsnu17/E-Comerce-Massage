@@ -4,7 +4,7 @@
 -- Jalankan untuk instalasi baru:
 --   mysql -u root -h 127.0.0.1 -P 3306 < database/schema.sql
 --
--- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 020
+-- Baseline ini telah mencakup seluruh perubahan aplikasi hingga migrasi 021
 -- (booking, pembayaran, voucher, ulasan, audit admin, sesi, terapis, dan
 -- token akses pesanan, checkout tamu, dan nama pasien).
 -- File di database/migrations/ hanya diperlukan untuk database lama.
@@ -215,6 +215,7 @@ CREATE TABLE orders (
   payment_method    ENUM('QRIS','Transfer Bank','Tunai') NOT NULL,
   payment_status   ENUM('Menunggu pembayaran','Menunggu verifikasi','Dibayar','Kedaluwarsa','Gagal','Dibatalkan','Dikembalikan') NOT NULL DEFAULT 'Menunggu pembayaran',
   payment_gateway VARCHAR(30) NULL,
+  payment_reference VARCHAR(100) NULL,
   gateway_transaction_id VARCHAR(100) NULL,
   qris_url VARCHAR(500) NULL,
   payment_updated_at DATETIME NULL,
@@ -241,6 +242,7 @@ CREATE TABLE orders (
   UNIQUE KEY uq_orders_code (order_code),
   UNIQUE KEY uq_orders_guest_access_token_hash (guest_access_token_hash),
   UNIQUE KEY uq_orders_gateway_transaction (gateway_transaction_id),
+  UNIQUE KEY uq_orders_payment_reference (payment_reference),
   KEY idx_orders_user_date (user_id, created_at),
   KEY idx_orders_appointment (appointment_date, appointment_time, appointment_status),
   KEY idx_orders_therapist_appointment (therapist_id, appointment_date, appointment_time),

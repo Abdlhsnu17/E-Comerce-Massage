@@ -371,8 +371,8 @@ async function createOrder(req, res, next) {
           customer: { name: cleanRecipientName, email: cleanEmail, phone: cleanPhone }
         });
         await connection.query(
-          `UPDATE orders SET payment_gateway = 'midtrans', gateway_transaction_id = ?, qris_url = ? WHERE id = ?`,
-          [qris.transactionId, qris.qrUrl, orderResult.insertId]
+          `UPDATE orders SET payment_gateway = 'midtrans', payment_reference = ?, gateway_transaction_id = ?, qris_url = ? WHERE id = ?`,
+          [orderCode, qris.transactionId, qris.qrUrl, orderResult.insertId]
         );
       } else if (staticQrisUrl) {
         qris = { qrUrl: staticQrisUrl, automatic: false };
@@ -499,6 +499,103 @@ async function requestOrderChange(req, res, next) {
   } catch (error) { next(error); }
 }
 
+/** Ganti QRIS <-> transfer hanya selama pembayaran belum dilakukan. */
+async function changePaymentMethod(req, res, next) {
+  try {
+    await expirePendingOrders();
+  } catch (error) {
+    return next(error);
+  }
+  const access = orderAccess(req);
+  if (!access) return res.status(401).json({ message: "Akses pesanan tidak valid." });
+  const paymentMethod = String(req.body.paymentMethod || "");
+  if (!["QRIS", "Transfer Bank"].includes(paymentMethod)) {
+    return res.status(400).json({ message: "Metode hanya dapat diganti antara QRIS dan Transfer Bank." });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      `SELECT id, order_code AS orderCode, total, discount_amount AS discountAmount,
+              payment_method AS paymentMethod, payment_status AS paymentStatus,
+              recipient_name AS recipientName, recipient_email AS recipientEmail,
+              recipient_phone AS recipientPhone
+         FROM orders WHERE id = ? AND ${access.clause} FOR UPDATE`,
+      [req.params.id, ...access.values]
+    );
+    const order = rows[0];
+    if (!order) throw new HttpError(404, "Pesanan tidak ditemukan.");
+    if (order.paymentStatus !== "Menunggu pembayaran") {
+      throw new HttpError(409, "Metode tidak dapat diganti karena pembayaran sudah diproses atau pesanan tidak aktif.");
+    }
+    if (order.paymentMethod === paymentMethod) {
+      throw new HttpError(409, `Metode pembayaran sudah menggunakan ${paymentMethod}.`);
+    }
+    if (!["QRIS", "Transfer Bank"].includes(order.paymentMethod)) {
+      throw new HttpError(409, "Metode pembayaran pesanan ini tidak dapat diganti.");
+    }
+
+    let qris = null;
+    let paymentReference = null;
+    let dueAt = new Date(Date.now() + TRANSFER_PAYMENT_HOURS * 3_600_000);
+    if (paymentMethod === "QRIS") {
+      dueAt = new Date(Date.now() + QRIS_PAYMENT_MINUTES * 60_000);
+      const staticQrisUrl = process.env.QRIS_IMAGE_URL?.trim();
+      if (process.env.MIDTRANS_SERVER_KEY?.trim()) {
+        paymentReference = `${order.orderCode}-P${Date.now().toString(36).toUpperCase()}`;
+        qris = await createQris({
+          orderCode: paymentReference,
+          total: Number(order.total),
+          items: [{ id: `order-${order.id}`, name: `Booking ${order.orderCode}`, price: Number(order.total), qty: 1 }],
+          customer: { name: order.recipientName, email: order.recipientEmail, phone: order.recipientPhone }
+        });
+      } else if (staticQrisUrl) {
+        qris = { qrUrl: staticQrisUrl, automatic: false };
+      } else {
+        throw new HttpError(503, "Gambar QRIS belum dipasang. Hubungi pengelola atau tetap gunakan transfer bank.");
+      }
+    }
+
+    await connection.query(
+      `UPDATE orders SET payment_method = ?, payment_due_at = ?, payment_updated_at = NOW(),
+              payment_gateway = ?, payment_reference = ?, gateway_transaction_id = ?, qris_url = ?,
+              payment_proof_url = NULL, payment_proof_uploaded_at = NULL
+        WHERE id = ?`,
+      [paymentMethod, dueAt,
+        paymentMethod === "QRIS" ? (qris.automatic === false ? "static-qris" : "midtrans") : null,
+        paymentReference, qris?.transactionId || null, qris?.qrUrl || null, order.id]
+    );
+    await connection.commit();
+    const details = await getPaymentDetails();
+    if (order.recipientEmail) notifyOrderUpdate({
+      to: order.recipientEmail,
+      recipientName: order.recipientName,
+      orderCode: order.orderCode,
+      subject: `Metode pembayaran ${order.orderCode} diubah`,
+      message: `Metode pembayaran Anda telah diubah menjadi ${paymentMethod}.`,
+      details: ["Gunakan hanya instruksi pembayaran terbaru pada halaman pesanan."]
+    });
+    res.json({
+      id: order.id,
+      paymentMethod,
+      paymentStatus: order.paymentStatus,
+      paymentDueAt: dueAt,
+      paymentDetails: paymentDetails(details, {
+        qrisUrl: qris?.qrUrl,
+        paymentGateway: paymentMethod === "QRIS" ? (qris.automatic === false ? "static-qris" : "midtrans") : ""
+      }),
+      message: `Metode pembayaran berhasil diganti ke ${paymentMethod}.`
+    });
+  } catch (error) {
+    await connection.rollback();
+    if (error instanceof HttpError) return res.status(error.status).json({ message: error.message });
+    next(error);
+  } finally {
+    connection.release();
+  }
+}
+
 async function discardUploadedFile(file) {
   if (file?.path) await fs.unlink(file.path).catch(() => {});
 }
@@ -588,7 +685,8 @@ async function refreshPayment(req, res, next) {
     if (!access) return res.status(401).json({ message: "Akses pesanan tidak valid." });
     const [rows] = await pool.query(
       `SELECT id, order_code AS orderCode, total, payment_method AS paymentMethod,
-              payment_status AS paymentStatus, payment_gateway AS paymentGateway
+              payment_status AS paymentStatus, payment_gateway AS paymentGateway,
+              payment_reference AS paymentReference
          FROM orders WHERE id = ? AND ${access.clause}`,
       [req.params.id, ...access.values]
     );
@@ -597,7 +695,7 @@ async function refreshPayment(req, res, next) {
     if (order.paymentMethod !== "QRIS" || order.paymentGateway !== "midtrans" || order.paymentStatus !== "Menunggu pembayaran") {
       return res.json({ id: order.id, paymentStatus: order.paymentStatus });
     }
-    const gatewayPayload = await getStatus(order.orderCode);
+    const gatewayPayload = await getStatus(order.paymentReference || order.orderCode);
     const paymentStatus = await applyGatewayStatus(pool, order, gatewayPayload);
     res.json({ id: order.id, paymentStatus });
   } catch (error) {
@@ -610,7 +708,7 @@ async function midtransNotification(req, res, next) {
     if (!verifyNotification(req.body)) return res.status(401).json({ message: "Tanda tangan notifikasi tidak valid." });
     const [rows] = await pool.query(
       `SELECT id, total, payment_status AS paymentStatus FROM orders
-        WHERE order_code = ? AND payment_method = 'QRIS'`,
+        WHERE COALESCE(payment_reference, order_code) = ? AND payment_method = 'QRIS'`,
       [req.body.order_id]
     );
     const order = rows[0];
@@ -622,4 +720,4 @@ async function midtransNotification(req, res, next) {
   }
 }
 
-module.exports = { createOrder, lookupOrder, getAvailability, requestOrderChange, listOrders, uploadPaymentProof, refreshPayment, midtransNotification, expirePendingOrders, orderAccess, listOrderAccess, SHIPPING_COST };
+module.exports = { createOrder, lookupOrder, getAvailability, requestOrderChange, listOrders, changePaymentMethod, uploadPaymentProof, refreshPayment, midtransNotification, expirePendingOrders, orderAccess, listOrderAccess, SHIPPING_COST };
