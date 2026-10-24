@@ -265,7 +265,35 @@ function invoiceMarkup(order) {
   const review = currentUser && order.status === "Selesai" && order.appointmentStatus === "Selesai"
     ? reviewMarkup(order)
     : "";
-  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>${finalInvoice ? "INVOICE" : "RINGKASAN BOOKING"}</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(order.appointmentDate)} ${esc(order.appointmentTime || "")}</p>${completionNote}${finalInvoice ? window.invoiceExports.actions(order.id) : ""}${review}</article>`;
+  return `<article class="invoice" data-invoice="${Number(order.id)}"><div class="invoice__head"><div><span>${finalInvoice ? "INVOICE" : "RINGKASAN BOOKING"}</span><h3>${esc(order.orderCode)}</h3></div><b class="payment-badge ${order.paymentStatus === "Dibayar" ? "is-paid" : ""}">${esc(order.paymentStatus)}</b></div><ul>${items}</ul><div class="invoice__total"><span>Total</span><b>${rupiah(order.total)}</b></div><p>Metode: ${esc(order.paymentMethod)} · Jadwal: ${esc(formatAppointmentDate(order.appointmentDate))}${order.appointmentTime ? ` pukul ${esc(order.appointmentTime)} WIB` : ""}</p>${completionNote}${finalInvoice ? window.invoiceExports.actions(order.id) : ""}${review}</article>`;
+}
+
+function formatAppointmentDate(value) {
+  if (!value) return "-";
+  const raw = String(value);
+  // Driver MySQL dapat mengirim DATE sebagai ISO UTC (mis. pukul 17.00Z pada
+  // hari sebelumnya). Format dalam WIB untuk mengembalikan tanggal kalendernya.
+  if (raw.includes("T")) {
+    const instant = new Date(raw);
+    if (!Number.isNaN(instant.getTime())) {
+      return new Intl.DateTimeFormat("id-ID", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta"
+      }).format(instant);
+    }
+  }
+  const calendarDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!calendarDate) return String(value);
+  const [, year, month, day] = calendarDate;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric"
+  }).format(date);
+}
+
+function expiredOrderAction(order) {
+  if (order.paymentStatus !== "Kedaluwarsa") return "";
+  const canRebook = (order.items || []).length > 0 && order.items.every(item => Number(item.productId) > 0);
+  return `<div class="expired-payment-notice" role="status"><strong>QRIS sudah kedaluwarsa</strong><p>Jangan membayar menggunakan QR lama. Slot jadwal sebelumnya telah dilepas; buat booking baru untuk memilih jadwal yang masih tersedia.</p>${canRebook ? `<button class="button button--primary" type="button" data-rebook-order="${Number(order.id)}">Booking ulang</button>` : ""}</div>`;
 }
 
 function isActiveOrder(order) {
@@ -279,7 +307,7 @@ function isActiveOrder(order) {
 
 function orderCardMarkup(order) {
   const canRequestChange = isActiveOrder(order) && order.changeRequestStatus !== "Menunggu";
-  return `<article class="order-card" data-order-card="${Number(order.id)}"><div><strong>${esc(order.orderCode)}</strong><p>Pasien: <b>${esc(order.patientName || "-")}</b></p><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${canRequestChange ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`;
+  return `<article class="order-card" data-order-card="${Number(order.id)}"><div><strong>${esc(order.orderCode)}</strong><p>Pasien: <b>${esc(order.patientName || "-")}</b></p><p>${esc(order.status)} · ${esc(order.paymentMethod)} · ${rupiah(order.total)} · <b>${esc(order.paymentStatus)}</b></p><p class="order-therapist"><span>Terapis</span><b>${esc(order.therapistName || "Belum ditetapkan")}</b></p>${order.changeRequestStatus ? `<small>Permintaan ${order.changeRequestType === "cancel" ? "pembatalan" : "ubah jadwal"}: <b>${esc(order.changeRequestStatus)}</b></small>` : ""}</div>${order.paymentStatus === "Menunggu pembayaran" ? paymentInstructions(order) : invoiceMarkup(order)}${expiredOrderAction(order)}${canRequestChange ? `<div class="order-change-actions"><button type="button" data-reschedule-order="${order.id}">Ubah jadwal</button><button type="button" data-cancel-request="${order.id}">Ajukan pembatalan</button></div>` : ""}</article>`;
 }
 
 function reviewMarkup(order) {
@@ -357,6 +385,21 @@ async function renderOrderHistory() {
       button.disabled = true;
       try { await api.changePaymentMethod(button.dataset.paymentMethodOrder, nextMethod); await renderOrderHistory(); }
       catch (error) { alert(error.message); button.disabled = false; }
+    }));
+    history.querySelectorAll("[data-rebook-order]").forEach(button => button.addEventListener("click", async () => {
+      const order = orders.find(item => Number(item.id) === Number(button.dataset.rebookOrder));
+      if (!order) return;
+      button.disabled = true;
+      button.textContent = "Menyiapkan booking…";
+      try {
+        for (const item of order.items) await api.addToCart(item.productId, Number(item.qty) || 1);
+        await renderCart();
+        document.querySelector("#cart")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        alert(`Booking ulang belum dapat disiapkan: ${error.message}`);
+        button.disabled = false;
+        button.textContent = "Booking ulang";
+      }
     }));
     bindPaymentProofForms(history);
     const pendingQris = activeOrders.filter(order => order.paymentMethod === "QRIS" && order.paymentDetails?.qrisAutomatic && order.paymentStatus === "Menunggu pembayaran");

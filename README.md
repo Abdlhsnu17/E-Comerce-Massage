@@ -297,7 +297,7 @@ Berikut endpoint penting yang tersedia di aplikasi:
 - Saat user login, keranjang tamu akan dicatat dan dipindahkan ke akun tersebut.
 - Harga, ongkir, dan ketersediaan dihitung di server sebelum order dibuat.
 - Jadwal layanan memerlukan konfirmasi admin sebelum status sesi diperbarui.
-- QRIS berlaku 15 menit dan dikonfirmasi otomatis oleh webhook Midtrans. Transfer bank berlaku 24 jam, kemudian bukti transfer diverifikasi admin. Booking yang tidak dibayar akan kedaluwarsa dan slot serta stok dilepas otomatis.
+- QRIS berlaku 30 menit secara bawaan dan dikonfirmasi otomatis oleh webhook Midtrans. Transfer bank berlaku 24 jam, kemudian bukti transfer diverifikasi admin. Booking yang tidak dibayar akan kedaluwarsa dan slot serta stok dilepas otomatis.
 - Pembayaran tunai hanya tersedia untuk sesi di studio. Invoice tersedia setelah pembayaran dikonfirmasi; sebelumnya pelanggan melihat ringkasan booking.
 
 ## Catatan penting
@@ -340,7 +340,7 @@ Untuk instalasi yang sudah berjalan, jalankan juga `database/migrations/012_paym
 MIDTRANS_SERVER_KEY=SB-Mid-server-...
 MIDTRANS_IS_PRODUCTION=false
 MIDTRANS_QRIS_ACQUIRER=gopay
-QRIS_PAYMENT_MINUTES=15
+QRIS_PAYMENT_MINUTES=30
 TRANSFER_PAYMENT_HOURS=24
 BANK_NAME=Bank Mandiri
 BANK_ACCOUNT_NUMBER=9000050103739

@@ -18,7 +18,7 @@ const DEFAULT_PAYMENT_DETAILS = Object.freeze({
   // URL gambar QRIS merchant yang diterbitkan penyedia pembayaran.
   qrisImageUrl: process.env.QRIS_IMAGE_URL || ""
 });
-const QRIS_PAYMENT_MINUTES = Math.max(5, Number(process.env.QRIS_PAYMENT_MINUTES) || 15);
+const QRIS_PAYMENT_MINUTES = Math.max(5, Number(process.env.QRIS_PAYMENT_MINUTES) || 30);
 const TRANSFER_PAYMENT_HOURS = Math.max(1, Number(process.env.TRANSFER_PAYMENT_HOURS) || 24);
 
 async function getPaymentDetails() {
